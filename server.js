@@ -1,8 +1,11 @@
-
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const Product = require('./models/productModel');
 const app = express();
+
+const MONGO_URL = process.env.MONGO_URL;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -85,11 +88,11 @@ app.delete('/products/:id', async (req, res) => {
   }
 });
 
-mongoose.connect('mongodb+srv://admin:aXiLKyZEldlZYnD9@nodeprojectapi.oipumkw.mongodb.net/?appName=NodeProjectAPI')
+mongoose.connect(MONGO_URL)
 .then(() => {
     console.log('connected to MongoDB');
-    app.listen(3000, () => {
-        console.log('node_api is running on port 3000');
+    app.listen(PORT, () => {
+        console.log(`node_api is running on port ${PORT}`);
 });
 }).catch((err) => {
   console.log('error connecting to MongoDB', err);
