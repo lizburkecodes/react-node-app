@@ -3,12 +3,20 @@ const express = require('express');
 const mongoose = require('mongoose');
 const productRoute = require('./routes/productRoute');
 const errorMiddleware = require('./middleware/errorMiddleware');
+const cors = require('cors');
 
 const app = express();
 
-const MONGO_URL = process.env.MONGO_URL;
 const PORT = process.env.PORT || 3000;
+const MONGO_URL = process.env.MONGO_URL;
+const FRONTEND = process.env.FRONTEND;
 
+const corsOption = {
+    origin: FRONTEND,
+    optionsSuccessStatus: 200
+}
+
+app.use(cors(corsOption));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -16,7 +24,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use('/api/products', productRoute);
 
 app.get('/', (req, res) => {
-  throw new Error('This is a test error');
+  // throw new Error('This is a test error');
   res.send('Hello!');
 });
 
