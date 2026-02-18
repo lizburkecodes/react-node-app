@@ -1,8 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const { getProducts, getProductById, createProduct, updateProduct, deleteProduct } = require('../controllers/productController');
 
-const Product = require('../models/productModel');
+const {
+  getProducts,
+  getProductById,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  getProductsByStore,
+  createProductForStore,
+} = require('../controllers/productController');
+
+// GET products for a specific store
+router.get('/store/:storeId', getProductsByStore);
+
+// POST product into a specific store
+router.post('/store/:storeId', createProductForStore);
 
 // get all products
 router.get('/', getProducts);
@@ -11,7 +24,7 @@ router.get('/', getProducts);
 router.get('/:id', getProductById);
 
 // create a new product
-router.post('/', createProduct)
+router.post('/', createProduct);
 
 // update a product by ID
 router.put('/:id', updateProduct);

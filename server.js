@@ -4,6 +4,9 @@ if (process.env.NODE_ENV !== 'production') {
 const express = require('express');
 const mongoose = require('mongoose');
 const productRoute = require('./routes/productRoute');
+const storeRoute = require('./routes/storeRoute');
+const authRoute = require('./routes/authRoute');
+
 const errorMiddleware = require('./middleware/errorMiddleware');
 const cors = require('cors');
 
@@ -24,6 +27,8 @@ app.use(express.urlencoded({ extended: false }));
 
 // routes
 app.use('/api/products', productRoute);
+app.use('/api/stores', storeRoute);
+app.use('/api/auth', authRoute);
 
 app.get('/', (req, res) => {
   // throw new Error('This is a test error');

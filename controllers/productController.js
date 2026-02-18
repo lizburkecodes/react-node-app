@@ -1,85 +1,115 @@
 const mongoose = require('mongoose');
-const Product = require('../models/productModel');
+const Product = require('../models/product');
+const Store = require('../models/store');
 const asyncHandler = require('express-async-handler');
 
 const getProducts = asyncHandler(async (req, res) => {
-    try {
-        const products = await Product.find({});
-        res.status(200).json(products);
-    } catch (error) {
-        throw new Error(error.message);
-    }
-})
+    const products = await Product.find({}).sort({ createdAt: -1 });
+    res.status(200).json(products);
+});
 
 const getProductById = asyncHandler(async (req, res) => {
-    try {
-        const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            res.status(400);
-            throw new Error(`invalid product ID ${id}`);
-        }
-        const product = await Product.findById(id);
-        if (!product) {
-            res.status(404);
-            throw new Error(`cannot find product with ID ${id}`);
-        }
-        res.status(200).json(product);
-    } catch (error) {
-        throw new Error(error.message);
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        res.status(400);
+        throw new Error(`invalid product ID ${id}`);
     }
-})
+    const product = await Product.findById(id);
+    if (!product) {
+        res.status(404);
+        throw new Error(`cannot find product with ID ${id}`);
+    }
+    res.status(200).json(product);
+});
+
+// GET /api/products/store/:storeId
+const getProductsByStore = asyncHandler(async (req, res) => {
+    const { storeId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(storeId)) {
+        res.status(400);
+        throw new Error(`invalid store ID ${storeId}`);
+    }
+
+    const products = await Product.find({ storeId }).sort({ createdAt: -1 });
+    res.status(200).json(products);
+});
+
+// POST /api/products/store/:storeId
+const createProductForStore = asyncHandler(async (req, res) => {
+  const { storeId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(storeId)) {
+    res.status(400);
+    throw new Error(`invalid store ID ${storeId}`);
+  }
+
+  const store = await Store.findById(storeId);
+  if (!store) {
+    res.status(404);
+    throw new Error('Store not found');
+  }
+
+  // Owner check
+  if (store.ownerId.toString() !== req.user.userId) {
+    res.status(403);
+    throw new Error('You are not authorized to add products to this store');
+  }
+
+  const product = await Product.create({
+    ...req.body,
+    storeId,
+  });
+
+  res.status(201).json(product);
+});
 
 const createProduct = asyncHandler(async (req, res) => {
-    try {
-        const product = await Product.create(req.body);
-        res.status(200).json(product);
-
-    } catch (error) {
-        throw new Error(error.message);
-    }
-})
+    const product = await Product.create(req.body);
+    res.status(201).json(product);
+});
 
 const updateProduct = asyncHandler(async (req, res) => {
-    try {
-        const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            res.status(400);
-            throw new Error(`invalid product ID ${id}`);
-        }
-        const product = await Product.findByIdAndUpdate(id, req.body)
-        if (!product) {
-            res.status(404);
-            throw new Error(`cannot find product with ID ${id}`);
-        }
-        const updatedProduct = await Product.findById(id);
-        res.status(200).json(updatedProduct);
-    } catch (error) {
-        throw new Error(error.message);
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        res.status(400);
+        throw new Error(`invalid product ID ${id}`);
     }
-})
+
+    const updatedProduct = await Product.findByIdAndUpdate(id, req.body, {
+        new: true,
+        runValidators: true,
+    });
+
+    if (!updatedProduct) {
+        res.status(404);
+        throw new Error(`cannot find product with ID ${id}`);
+    }
+
+    res.status(200).json(updatedProduct);
+});
 
 const deleteProduct = asyncHandler(async (req, res) => {
-    try {
-        const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            res.status(400);
-            throw new Error(`invalid product ID ${id}`);
-        }
-        const product = await Product.findByIdAndDelete(id);
-        if (!product) {
-            res.status(404);
-            throw new Error(`cannot find product with ID ${id}`);
-        }
-        res.status(200).json(product);
-    } catch (error) {
-        throw new Error(error.message);
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        res.status(400);
+        throw new Error(`invalid product ID ${id}`);
     }
-})
+    const product = await Product.findByIdAndDelete(id);
+    if (!product) {
+        res.status(404);
+        throw new Error(`cannot find product with ID ${id}`);
+    }
+    res.status(200).json(product);
+});
 
 module.exports = {
     getProducts,
     getProductById,
     createProduct,
     updateProduct,
-    deleteProduct
+    deleteProduct,
+    getProductsByStore,
+    createProductForStore,
 };
