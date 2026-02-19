@@ -20,11 +20,9 @@ const storeSchema = new mongoose.Schema(
       type: {
         type: String,
         enum: ['Point'],
-        default: 'Point',
       },
       coordinates: {
         type: [Number], // [lng, lat]
-        default: undefined,
         validate: {
           validator: function (v) {
             return v == null || v.length === 2;
