@@ -3,8 +3,11 @@ if (process.env.NODE_ENV !== 'production') {
 }
 const express = require('express');
 const mongoose = require('mongoose');
+
+// routes 
 const productRoute = require('./routes/productRoute');
 const storeRoute = require('./routes/storeRoute');
+const searchRoute = require('./routes/searchRoute');
 const authRoute = require('./routes/authRoute');
 
 const errorMiddleware = require('./middleware/errorMiddleware');
@@ -28,6 +31,7 @@ app.use(express.urlencoded({ extended: false }));
 // routes
 app.use('/api/products', productRoute);
 app.use('/api/stores', storeRoute);
+app.use('/api/search', searchRoute);
 app.use('/api/auth', authRoute);
 
 app.get('/', (req, res) => {

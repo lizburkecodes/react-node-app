@@ -70,38 +70,66 @@ const createProduct = asyncHandler(async (req, res) => {
 });
 
 const updateProduct = asyncHandler(async (req, res) => {
-    const { id } = req.params;
+  const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        res.status(400);
-        throw new Error(`invalid product ID ${id}`);
-    }
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400);
+    throw new Error(`invalid product ID ${id}`);
+  }
 
-    const updatedProduct = await Product.findByIdAndUpdate(id, req.body, {
-        new: true,
-        runValidators: true,
-    });
+  const product = await Product.findById(id);
+  if (!product) {
+    res.status(404);
+    throw new Error(`cannot find product with ID ${id}`);
+  }
 
-    if (!updatedProduct) {
-        res.status(404);
-        throw new Error(`cannot find product with ID ${id}`);
-    }
+  const store = await Store.findById(product.storeId);
+  if (!store) {
+    res.status(404);
+    throw new Error('Store not found for this product');
+  }
 
-    res.status(200).json(updatedProduct);
+  if (store.ownerId.toString() !== req.user.userId) {
+    res.status(403);
+    throw new Error('You are not authorized to update this product');
+  }
+
+  const updatedProduct = await Product.findByIdAndUpdate(id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+
+  res.status(200).json(updatedProduct);
 });
 
 const deleteProduct = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        res.status(400);
-        throw new Error(`invalid product ID ${id}`);
-    }
-    const product = await Product.findByIdAndDelete(id);
-    if (!product) {
-        res.status(404);
-        throw new Error(`cannot find product with ID ${id}`);
-    }
-    res.status(200).json(product);
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400);
+    throw new Error(`invalid product ID ${id}`);
+  }
+
+  const product = await Product.findById(id);
+  if (!product) {
+    res.status(404);
+    throw new Error(`cannot find product with ID ${id}`);
+  }
+
+  const store = await Store.findById(product.storeId);
+  if (!store) {
+    res.status(404);
+    throw new Error('Store not found for this product');
+  }
+
+  if (store.ownerId.toString() !== req.user.userId) {
+    res.status(403);
+    throw new Error('You are not authorized to delete this product');
+  }
+
+  await Product.findByIdAndDelete(id);
+
+  res.status(200).json({ message: 'Product deleted successfully' });
 });
 
 module.exports = {
