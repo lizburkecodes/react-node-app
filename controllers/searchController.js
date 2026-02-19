@@ -28,22 +28,38 @@ const search = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .lean();
 
-  // 3) Stores result:
-  // - If q is provided, also search stores by name (and merge with location stores)
-  let stores = locationStores;
+  // 3) Stores result logic
+  let stores = [];
 
   if (q) {
-    const qStores = await Store.find({
-      name: { $regex: q, $options: 'i' },
-    })
+    const qRegex = { $regex: q, $options: 'i' };
+
+    // Store IDs from matching products
+    const productStoreIds = [
+      ...new Set(productsRaw.map((p) => String(p.storeId))),
+    ];
+
+    const storeFilter = {
+      $or: [
+        { name: qRegex },
+        ...(productStoreIds.length
+          ? [{ _id: { $in: productStoreIds } }]
+          : []),
+      ],
+    };
+
+    // If location is also present, restrict to those stores
+    if (location) {
+      storeFilter.addressText = { $regex: location, $options: 'i' };
+    }
+
+    stores = await Store.find(storeFilter)
       .select('_id name addressText image geo ownerId')
       .sort({ createdAt: -1 })
       .lean();
-
-    // Merge unique stores (by _id)
-    const byId = new Map();
-    for (const s of [...locationStores, ...qStores]) byId.set(String(s._id), s);
-    stores = Array.from(byId.values());
+  } else {
+    // No q → just return location-based stores (or all stores if no location)
+    stores = locationStores;
   }
 
   // 4) Attach store summary to each product
