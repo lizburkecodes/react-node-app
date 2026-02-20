@@ -203,6 +203,7 @@ const changePassword = asyncHandler(async (req, res) => {
   // Hash and update new password
   const newPasswordHash = await bcrypt.hash(newPassword, 10);
   user.passwordHash = newPasswordHash;
+  user.passwordChangedAt = Date.now();
   await user.save();
 
   res.status(200).json({
