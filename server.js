@@ -33,6 +33,7 @@ app.use('/api/products', productRoute);
 app.use('/api/stores', storeRoute);
 app.use('/api/search', searchRoute);
 app.use('/api/auth', authRoute);
+app.use('/api/images', require('./routes/imageRoute'));
 
 app.get('/', (req, res) => {
   // throw new Error('This is a test error');

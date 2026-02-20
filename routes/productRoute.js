@@ -16,7 +16,7 @@ const {
 router.get('/store/:storeId', getProductsByStore);
 
 // POST product into a specific store
-router.post('/store/:storeId', createProductForStore);
+router.post('/store/:storeId', authMiddleware, createProductForStore);
 
 // get all products
 router.get('/', getProducts);
