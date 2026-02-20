@@ -6,6 +6,23 @@ const sendEmail = require('../utils/sendEmail');
 
 const User = require('../models/user');
 
+// Helper: validate password strength
+const validatePasswordStrength = (password) => {
+  const minLength = 8;
+  const hasNumber = /\d/.test(password);
+  const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+
+  if (password.length < minLength) {
+    throw new Error(`Password must be at least ${minLength} characters`);
+  }
+  if (!hasNumber) {
+    throw new Error('Password must contain at least one number');
+  }
+  if (!hasSymbol) {
+    throw new Error('Password must contain at least one symbol (!@#$%^&*()_+-=[]{};\':"\\|,.<>/?)')
+  }
+};
+
 // Helper: sign JWT
 const signToken = (userId) => {
   const secret = process.env.JWT_SECRET;
@@ -23,6 +40,14 @@ const registerUser = asyncHandler(async (req, res) => {
   if (!email || !password || !displayName) {
     res.status(400);
     throw new Error('email, password, and displayName are required');
+  }
+
+  // Validate password strength
+  try {
+    validatePasswordStrength(password);
+  } catch (error) {
+    res.status(400);
+    throw error;
   }
 
   // Normalize email
@@ -176,9 +201,12 @@ const changePassword = asyncHandler(async (req, res) => {
     throw new Error('currentPassword and newPassword are required');
   }
 
-  if (String(newPassword).length < 8) {
+  // Validate password strength
+  try {
+    validatePasswordStrength(newPassword);
+  } catch (error) {
     res.status(400);
-    throw new Error("New password must be at least 8 characters");
+    throw error;
   }
 
   if (currentPassword === newPassword) {
@@ -220,9 +248,12 @@ const resetPassword = asyncHandler(async (req, res) => {
     throw new Error("Token and newPassword are required");
   }
 
-  if (newPassword.length < 8) {
+  // Validate password strength
+  try {
+    validatePasswordStrength(newPassword);
+  } catch (error) {
     res.status(400);
-    throw new Error("Password must be at least 8 characters");
+    throw error;
   }
 
   // Hash incoming token to compare with stored hash
