@@ -6,10 +6,49 @@ const search = asyncHandler(async (req, res) => {
   const q = (req.query.q || '').trim();
   const location = (req.query.location || '').trim();
 
+  const lat = req.query.lat;
+  const lng = req.query.lng;
+  const radiusKm = req.query.radiusKm ?? req.query.radius; // allow either
+
+  let geoFilter = null;
+
+if (lat && lng && radiusKm) {
+  const parsedLat = Number(lat);
+  const parsedLng = Number(lng);
+  const parsedRadiusKm = Number(radiusKm);
+
+  if ([parsedLat, parsedLng, parsedRadiusKm].some((n) => Number.isNaN(n))) {
+    res.status(400);
+    throw new Error("lat, lng, and radiusKm must be numbers");
+  }
+
+  // radius in radians = distance / earthRadius
+  const earthRadiusKm = 6378.1;
+  const radiusInRadians = parsedRadiusKm / earthRadiusKm;
+
+  // NOTE: $geoWithin + $centerSphere does not require every doc to have geo,
+  // it just excludes ones without valid geo (which is what we want).
+  geoFilter = {
+    geo: {
+      $geoWithin: {
+        $centerSphere: [[parsedLng, parsedLat], radiusInRadians],
+      },
+    },
+  };
+}
+
   // 1) Find "location stores" first (only based on location)
-  const locationStoreFilter = location
-    ? { addressText: { $regex: location, $options: 'i' } }
-    : {};
+  const locationStoreFilter = {};
+
+  // location text
+  if (location) {
+    locationStoreFilter.addressText = { $regex: location, $options: "i" };
+  }
+
+  // geo radius
+  if (geoFilter) {
+    Object.assign(locationStoreFilter, geoFilter);
+  }
 
   const locationStores = await Store.find(locationStoreFilter)
     .select('_id name addressText image geo ownerId')
@@ -18,10 +57,10 @@ const search = asyncHandler(async (req, res) => {
 
   const locationStoreIds = locationStores.map((s) => s._id);
 
-  // 2) Products: match q (if provided) AND match location storeIds (if location provided)
+  // 2) Products: match q AND match location storeIds (if provided)
   const productFilter = {};
   if (q) productFilter.name = { $regex: q, $options: 'i' };
-  if (location) productFilter.storeId = { $in: locationStoreIds };
+  if (location || geoFilter) productFilter.storeId = { $in: locationStoreIds };
 
   const productsRaw = await Product.find(productFilter)
     .select('_id name quantity image storeId createdAt')
@@ -50,7 +89,10 @@ const search = asyncHandler(async (req, res) => {
 
     // If location is also present, restrict to those stores
     if (location) {
-      storeFilter.addressText = { $regex: location, $options: 'i' };
+      storeFilter.addressText = { $regex: location, $options: "i" };
+    }
+    if (geoFilter) {
+      Object.assign(storeFilter, geoFilter);
     }
 
     stores = await Store.find(storeFilter)
