@@ -100,7 +100,7 @@ const updateStore = asyncHandler(async (req, res) => {
       throw new Error("Not authorized");
     }
 
-    if (String(store.ownerId) !== String(req.user.userId)) {
+    if (String(store.ownerId) !== String(req.user._id)) {
       res.status(403);
       throw new Error("You are not authorized to edit this store");
     }

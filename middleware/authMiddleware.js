@@ -17,6 +17,7 @@ const authMiddleware = asyncHandler(async (req, res, next) => {
     // Attach user info to request
     req.user = {
       userId: decoded.userId,
+      _id: decoded.userId,
     };
 
     next();
