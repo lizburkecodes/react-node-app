@@ -20,6 +20,18 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Display name is required'],
       trim: true,
     },
+
+    passwordResetToken: {
+      type: String,
+    },
+
+    passwordResetExpires: {
+      type: Date,
+    },
+
+    passwordChangedAt: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );
