@@ -78,42 +78,57 @@ const createStore = asyncHandler(async (req, res) => {
     }
 });
 
-// PUT /api/stores/:id
+// PUT /api/stores/:id  (owner only)
 const updateStore = asyncHandler(async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { name, addressText, image, geo } = req.body;
+  try {
+    const { id } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            res.status(400);
-            throw new Error(`invalid store ID ${id}`);
-        }
-
-        // Optional: validate geo if provided
-        if (geo?.coordinates && (!Array.isArray(geo.coordinates) || geo.coordinates.length !== 2)) {
-            res.status(400);
-            throw new Error('geo.coordinates must be [lng, lat]');
-        }
-
-        const updatedStore = await Store.findByIdAndUpdate(id, {
-            name,
-            addressText,
-            image,
-            geo,
-        }, {
-            new: true,
-            runValidators: true,
-        });
-
-        if (!updatedStore) {
-            res.status(404);
-            throw new Error(`cannot find store with ID ${id}`);
-        }
-
-        res.status(200).json(updatedStore);
-    } catch (error) {
-        throw new Error(error.message);
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400);
+      throw new Error(`invalid store ID ${id}`);
     }
+
+    const store = await Store.findById(id);
+    if (!store) {
+      res.status(404);
+      throw new Error(`cannot find store with ID ${id}`);
+    }
+
+    // auth required + owner check
+    if (!req.user) {
+      res.status(401);
+      throw new Error("Not authorized");
+    }
+
+    if (String(store.ownerId) !== String(req.user.userId)) {
+      res.status(403);
+      throw new Error("You are not authorized to edit this store");
+    }
+
+    // allow updating only specific fields
+    const { name, addressText, image, geo } = req.body;
+
+    if (name != null) store.name = name;
+    if (addressText != null) store.addressText = addressText;
+    if (image != null) store.image = image;
+
+    // optional geo update (only if provided)
+    if (geo?.coordinates) {
+      if (!Array.isArray(geo.coordinates) || geo.coordinates.length !== 2) {
+        res.status(400);
+        throw new Error("geo.coordinates must be [lng, lat]");
+      }
+      store.geo = {
+        type: "Point",
+        coordinates: geo.coordinates,
+      };
+    }
+
+    const updated = await store.save();
+    res.status(200).json(updated);
+  } catch (error) {
+    throw new Error(error.message);
+  }
 });
 
 module.exports = {
