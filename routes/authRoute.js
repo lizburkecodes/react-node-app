@@ -5,6 +5,7 @@ const {
   registerUser,
   loginUser,
   getMe,
+  changePassword,
 } = require('../controllers/authController');
 
 const authMiddleware = require('../middleware/authMiddleware');
@@ -15,5 +16,8 @@ router.post('/login', loginUser);
 
 // Get current user (requires JWT)
 router.get('/me', authMiddleware, getMe);
+
+// Change password (requires JWT)
+router.put('/change-password', authMiddleware, changePassword);
 
 module.exports = router;

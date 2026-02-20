@@ -108,8 +108,59 @@ const getMe = asyncHandler(async (req, res) => {
   res.status(200).json(user);
 });
 
+// PUT /api/auth/change-password
+const changePassword = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId;
+
+  if (!userId) {
+    res.status(401);
+    throw new Error('Not authorized');
+  }
+
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    res.status(400);
+    throw new Error('currentPassword and newPassword are required');
+  }
+
+  if (String(newPassword).length < 8) {
+    res.status(400);
+    throw new Error("New password must be at least 8 characters");
+  }
+
+  if (currentPassword === newPassword) {
+    res.status(400);
+    throw new Error('New password must be different from old password');
+  }
+
+  // Find user with passwordHash included
+  const user = await User.findById(userId);
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  // Verify old password
+  const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!isMatch) {
+    res.status(401);
+    throw new Error('Current password is incorrect');
+  }
+
+  // Hash and update new password
+  const newPasswordHash = await bcrypt.hash(newPassword, 10);
+  user.passwordHash = newPasswordHash;
+  await user.save();
+
+  res.status(200).json({
+    message: 'Password updated successfully',
+  });
+});
+
 module.exports = {
   registerUser,
   loginUser,
   getMe,
+  changePassword,
 };
