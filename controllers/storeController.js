@@ -1,44 +1,35 @@
 const mongoose = require('mongoose');
 const asyncHandler = require('express-async-handler');
+const { AppError } = require('../utils/appError');
 const Store = require('../models/store'); 
 
 // GET /api/stores
 const getStores = asyncHandler(async (req, res) => {
-    try {
-        // Optional simple filter: /api/stores?search=orlando
-        const { search } = req.query;
+    // Optional simple filter: /api/stores?search=orlando
+    const { search } = req.query;
 
-        const filter = search
-            ? { addressText: { $regex: search, $options: 'i' } }
-            : {};
+    const filter = search
+        ? { addressText: { $regex: search, $options: 'i' } }
+        : {};
 
-        const stores = await Store.find(filter).sort({ createdAt: -1 });
-        res.status(200).json(stores);
-    } catch (error) {
-        throw new Error(error.message);
-    }
+    const stores = await Store.find(filter).sort({ createdAt: -1 });
+    res.status(200).json(stores);
 });
 
 // GET /api/stores/:id
 const getStoreById = asyncHandler(async (req, res) => {
-    try {
-        const { id } = req.params;
+    const { id } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            res.status(400);
-            throw new Error(`invalid store ID ${id}`);
-        }
-
-        const store = await Store.findById(id);
-        if (!store) {
-            res.status(404);
-            throw new Error(`cannot find store with ID ${id}`);
-        }
-
-        res.status(200).json(store);
-    } catch (error) {
-        throw new Error(error.message);
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new AppError('Invalid store ID format', 400, 'VALIDATION_012', true);
     }
+
+    const store = await Store.findById(id);
+    if (!store) {
+        throw AppError.STORE_NOT_FOUND();
+    }
+
+    res.status(200).json(store);
 });
 
 // POST /api/stores
@@ -47,8 +38,7 @@ const createStore = asyncHandler(async (req, res) => {
     const ownerId = req.user?.userId;
 
     if (!ownerId) {
-      res.status(401);
-      throw new Error('Not authorized');
+      throw AppError.UNAUTHORIZED();
     }
 
     const store = await Store.create({
@@ -64,29 +54,24 @@ const createStore = asyncHandler(async (req, res) => {
 
 // PUT /api/stores/:id  (owner only)
 const updateStore = asyncHandler(async (req, res) => {
-  try {
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      res.status(400);
-      throw new Error(`invalid store ID ${id}`);
+      throw new AppError('Invalid store ID format', 400, 'VALIDATION_012', true);
     }
 
     const store = await Store.findById(id);
     if (!store) {
-      res.status(404);
-      throw new Error(`cannot find store with ID ${id}`);
+      throw AppError.STORE_NOT_FOUND();
     }
 
     // auth required + owner check
     if (!req.user) {
-      res.status(401);
-      throw new Error("Not authorized");
+      throw AppError.UNAUTHORIZED();
     }
 
     if (String(store.ownerId) !== String(req.user._id)) {
-      res.status(403);
-      throw new Error("You are not authorized to edit this store");
+      throw AppError.STORE_NOT_OWNED_BY_USER();
     }
 
     // allow updating only specific fields
@@ -106,9 +91,6 @@ const updateStore = asyncHandler(async (req, res) => {
 
     const updated = await store.save();
     res.status(200).json(updated);
-  } catch (error) {
-    throw new Error(error.message);
-  }
 });
 
 module.exports = {

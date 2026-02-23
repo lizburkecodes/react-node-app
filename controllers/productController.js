@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Product = require('../models/product');
 const Store = require('../models/store');
 const asyncHandler = require('express-async-handler');
+const { AppError } = require('../utils/appError');
 
 const getProducts = asyncHandler(async (req, res) => {
     const products = await Product.find({}).sort({ createdAt: -1 });
@@ -11,13 +12,11 @@ const getProducts = asyncHandler(async (req, res) => {
 const getProductById = asyncHandler(async (req, res) => {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
-        res.status(400);
-        throw new Error(`invalid product ID ${id}`);
+        throw new AppError('Invalid product ID format', 400, 'VALIDATION_012', true);
     }
     const product = await Product.findById(id);
     if (!product) {
-        res.status(404);
-        throw new Error(`cannot find product with ID ${id}`);
+        throw AppError.PRODUCT_NOT_FOUND();
     }
     res.status(200).json(product);
 });
@@ -27,8 +26,7 @@ const getProductsByStore = asyncHandler(async (req, res) => {
     const { storeId } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(storeId)) {
-        res.status(400);
-        throw new Error(`invalid store ID ${storeId}`);
+        throw new AppError('Invalid store ID format', 400, 'VALIDATION_012', true);
     }
 
     const products = await Product.find({ storeId }).sort({ createdAt: -1 });
@@ -40,20 +38,17 @@ const createProductForStore = asyncHandler(async (req, res) => {
   const { storeId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(storeId)) {
-    res.status(400);
-    throw new Error(`invalid store ID ${storeId}`);
+    throw new AppError('Invalid store ID format', 400, 'VALIDATION_012', true);
   }
 
   const store = await Store.findById(storeId);
   if (!store) {
-    res.status(404);
-    throw new Error('Store not found');
+    throw AppError.STORE_NOT_FOUND();
   }
 
   // Owner check
   if (store.ownerId.toString() !== req.user.userId) {
-    res.status(403);
-    throw new Error('You are not authorized to add products to this store');
+    throw AppError.STORE_NOT_OWNED_BY_USER();
   }
 
   const { name, quantity, image } = req.validated; // Already validated & sanitized
@@ -82,25 +77,21 @@ const updateProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    res.status(400);
-    throw new Error(`invalid product ID ${id}`);
+    throw new AppError('Invalid product ID format', 400, 'VALIDATION_012', true);
   }
 
   const product = await Product.findById(id);
   if (!product) {
-    res.status(404);
-    throw new Error(`cannot find product with ID ${id}`);
+    throw AppError.PRODUCT_NOT_FOUND();
   }
 
   const store = await Store.findById(product.storeId);
   if (!store) {
-    res.status(404);
-    throw new Error('Store not found for this product');
+    throw AppError.STORE_NOT_FOUND();
   }
 
   if (store.ownerId.toString() !== req.user.userId) {
-    res.status(403);
-    throw new Error('You are not authorized to update this product');
+    throw AppError.STORE_NOT_OWNED_BY_USER();
   }
 
   const { name, quantity, image } = req.validated; // Already validated & sanitized
@@ -118,25 +109,21 @@ const deleteProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    res.status(400);
-    throw new Error(`invalid product ID ${id}`);
+    throw new AppError('Invalid product ID format', 400, 'VALIDATION_012', true);
   }
 
   const product = await Product.findById(id);
   if (!product) {
-    res.status(404);
-    throw new Error(`cannot find product with ID ${id}`);
+    throw AppError.PRODUCT_NOT_FOUND();
   }
 
   const store = await Store.findById(product.storeId);
   if (!store) {
-    res.status(404);
-    throw new Error('Store not found for this product');
+    throw AppError.STORE_NOT_FOUND();
   }
 
   if (store.ownerId.toString() !== req.user.userId) {
-    res.status(403);
-    throw new Error('You are not authorized to delete this product');
+    throw AppError.STORE_NOT_OWNED_BY_USER();
   }
 
   await Product.findByIdAndDelete(id);

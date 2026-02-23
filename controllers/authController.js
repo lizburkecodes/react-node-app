@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const sendEmail = require('../utils/sendEmail');
+const { AppError } = require('../utils/appError');
 
 const User = require('../models/user');
 
@@ -12,10 +13,10 @@ const validatePasswordStrength = (password) => {
   const maxLength = 64;
 
   if (password.length < minLength) {
-    throw new Error(`Password must be at least ${minLength} characters`);
+    throw AppError.INVALID_PASSWORD(`Password must be at least ${minLength} characters`);
   }
   if (password.length > maxLength) {
-    throw new Error(`Password must not exceed ${maxLength} characters`);
+    throw AppError.INVALID_PASSWORD(`Password must not exceed ${maxLength} characters`);
   }
 };
 
@@ -23,7 +24,7 @@ const validatePasswordStrength = (password) => {
 const signToken = (userId) => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    throw new Error('JWT_SECRET is not set in environment variables');
+    throw new AppError('JWT_SECRET is not set in environment variables', 500, 'CONFIG_001', false);
   }
 
   return jwt.sign({ userId }, secret, { expiresIn: '7d' });
@@ -36,8 +37,7 @@ const registerUser = asyncHandler(async (req, res) => {
   // Check if user exists
   const existing = await User.findOne({ email });
   if (existing) {
-    res.status(409);
-    throw new Error('Email is already in use');
+    throw AppError.EMAIL_ALREADY_EXISTS();
   }
 
   // Hash password
@@ -67,14 +67,12 @@ const loginUser = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email });
   if (!user) {
-    res.status(401);
-    throw new Error('Invalid credentials');
+    throw AppError.INVALID_CREDENTIALS();
   }
 
   const isMatch = await bcrypt.compare(password, user.passwordHash);
   if (!isMatch) {
-    res.status(401);
-    throw new Error('Invalid credentials');
+    throw AppError.INVALID_CREDENTIALS();
   }
 
   const token = signToken(user._id);
@@ -140,14 +138,12 @@ const getMe = asyncHandler(async (req, res) => {
   const userId = req.user?.userId;
 
   if (!userId) {
-    res.status(401);
-    throw new Error('Not authorized');
+    throw AppError.UNAUTHORIZED();
   }
 
   const user = await User.findById(userId).select('_id email displayName');
   if (!user) {
-    res.status(404);
-    throw new Error('User not found');
+    throw AppError.USER_NOT_FOUND();
   }
 
   res.status(200).json(user);
@@ -158,29 +154,25 @@ const changePassword = asyncHandler(async (req, res) => {
   const userId = req.user?.userId;
 
   if (!userId) {
-    res.status(401);
-    throw new Error('Not authorized');
+    throw AppError.UNAUTHORIZED();
   }
 
   const { currentPassword, newPassword } = req.validated; // Already validated & sanitized
 
   if (currentPassword === newPassword) {
-    res.status(400);
-    throw new Error('New password must be different from old password');
+    throw new AppError('New password must be different from old password', 400, 'VALIDATION_013', true);
   }
 
   // Find user with passwordHash included
   const user = await User.findById(userId);
   if (!user) {
-    res.status(404);
-    throw new Error('User not found');
+    throw AppError.USER_NOT_FOUND();
   }
 
   // Verify old password
   const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!isMatch) {
-    res.status(401);
-    throw new Error('Current password is incorrect');
+    throw AppError.INVALID_CREDENTIALS('Current password is incorrect');
   }
 
   // Hash and update new password
@@ -210,8 +202,7 @@ const resetPassword = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    res.status(400);
-    throw new Error("Invalid or expired reset token");
+    throw AppError.RESET_TOKEN_NOT_FOUND();
   }
 
   // Hash and update password

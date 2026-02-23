@@ -1,5 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const axios = require("axios");
+const { AppError } = require('../utils/appError');
 
 const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
 
@@ -24,12 +25,10 @@ const suggestImage = asyncHandler(async (req, res) => {
   const query = buildQuery(raw);
 
   if (!PEXELS_API_KEY) {
-    res.status(500);
-    throw new Error("PEXELS_API_KEY is not set");
+    throw new AppError('Image suggestion service is unavailable', 500, 'CONFIG_002', false);
   }
   if (!query) {
-    res.status(400);
-    throw new Error("Missing query parameter");
+    throw AppError.INVALID_SEARCH_QUERY('Search query is required');
   }
 
   const PER_PAGE = 12;
