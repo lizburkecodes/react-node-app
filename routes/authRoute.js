@@ -13,6 +13,7 @@ const {
 const authMiddleware = require('../middleware/authMiddleware');
 const {
   loginLimiter,
+  registerLimiter,
   forgotPasswordLimiter,
   resetPasswordLimiter,
 } = require('../middleware/rateLimitMiddleware');
@@ -29,8 +30,9 @@ const {
   auditPasswordChange,
 } = require('../middleware/auditMiddleware');
 
-// Register + Login with validation and audit logging
-router.post('/register', validateAuthRequest, auditAuthAttempt(), registerUser);
+// Register with rate limiting, validation and audit logging
+router.post('/register', registerLimiter, validateAuthRequest, auditAuthAttempt(), registerUser);
+// Login with rate limiting, validation and audit logging
 router.post('/login', loginLimiter, validateAuthRequest, auditAuthAttempt(), loginUser);
 
 // Get current user (requires JWT)
@@ -39,9 +41,9 @@ router.get('/me', authMiddleware, getMe);
 // Change password (requires JWT) with audit logging
 router.put('/change-password', authMiddleware, validateChangePasswordRequest, auditPasswordChange(), changePassword);
 
-// forgot password with audit
+// forgot password with rate limiting
 router.post("/forgot-password", forgotPasswordLimiter, validateForgotPasswordRequest, forgotPassword);
-// reset password flow with audit
+// reset password flow with rate limiting
 router.post("/reset-password", resetPasswordLimiter, validateResetPasswordRequest, resetPassword);
 
 module.exports = router;
