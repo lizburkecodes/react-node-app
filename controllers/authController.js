@@ -70,10 +70,30 @@ const loginUser = asyncHandler(async (req, res) => {
     throw AppError.INVALID_CREDENTIALS();
   }
 
+  // Check if account is locked
+  if (user.accountLockedUntil && user.accountLockedUntil > Date.now()) {
+    throw AppError.ACCOUNT_LOCKED();
+  }
+
   const isMatch = await bcrypt.compare(password, user.passwordHash);
   if (!isMatch) {
+    // Increment failed login attempts
+    user.loginAttempts = (user.loginAttempts || 0) + 1;
+    
+    // Lock account after 5 failed attempts for 30 minutes
+    if (user.loginAttempts >= 5) {
+      user.accountLockedUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+    }
+    
+    await user.save();
     throw AppError.INVALID_CREDENTIALS();
   }
+
+  // Reset login attempts on successful login
+  user.loginAttempts = 0;
+  user.accountLockedUntil = undefined;
+  user.lastLoginAt = new Date();
+  await user.save();
 
   const token = signToken(user._id);
 
@@ -179,6 +199,7 @@ const changePassword = asyncHandler(async (req, res) => {
   const newPasswordHash = await bcrypt.hash(newPassword, 10);
   user.passwordHash = newPasswordHash;
   user.passwordChangedAt = Date.now();
+  user.lastPasswordChangeAt = new Date();
   await user.save();
 
   res.status(200).json({
@@ -214,6 +235,11 @@ const resetPassword = asyncHandler(async (req, res) => {
 
   // Track password change time
   user.passwordChangedAt = Date.now();
+  user.lastPasswordChangeAt = new Date();
+
+  // Reset login attempts since password was reset
+  user.loginAttempts = 0;
+  user.accountLockedUntil = undefined;
 
   await user.save();
 

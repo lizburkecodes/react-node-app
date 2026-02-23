@@ -32,6 +32,24 @@ const userSchema = new mongoose.Schema(
     passwordChangedAt: {
       type: Date,
     },
+
+    // Audit trail fields
+    lastLoginAt: {
+      type: Date,
+    },
+
+    loginAttempts: {
+      type: Number,
+      default: 0,
+    },
+
+    accountLockedUntil: {
+      type: Date,
+    },
+
+    lastPasswordChangeAt: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );

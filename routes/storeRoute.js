@@ -3,6 +3,7 @@ const router = express.Router();
 
 const authMiddleware = require('../middleware/authMiddleware');
 const { validateStoreRequest, validateProductRequest } = require('../middleware/validationMiddleware');
+const { auditLog } = require('../middleware/auditMiddleware');
 
 const {
   getStores,
@@ -18,16 +19,16 @@ const {
 
 // store -> products (public for now)
 router.get('/:storeId/products', getProductsByStore);
-router.post('/:storeId/products', authMiddleware, validateProductRequest, createProductForStore);
+router.post('/:storeId/products', authMiddleware, validateProductRequest, auditLog('PRODUCT_CREATE', 'Product'), createProductForStore);
 
 // get all stores
 router.get('/', getStores);
 
-// create store
-router.post('/', authMiddleware, validateStoreRequest, createStore);
+// create store with audit log
+router.post('/', authMiddleware, validateStoreRequest, auditLog('STORE_CREATE', 'Store'), createStore);
 
-// update store
-router.put('/:id', authMiddleware, validateStoreRequest, updateStore);
+// update store with audit log
+router.put('/:id', authMiddleware, validateStoreRequest, auditLog('STORE_UPDATE', 'Store'), updateStore);
 
 // get one store (keep last)
 router.get('/:id', getStoreById);
