@@ -56,8 +56,12 @@ const createProductForStore = asyncHandler(async (req, res) => {
     throw new Error('You are not authorized to add products to this store');
   }
 
+  const { name, quantity, image } = req.validated; // Already validated & sanitized
+
   const product = await Product.create({
-    ...req.body,
+    name,
+    quantity,
+    image: image || undefined,
     storeId,
   });
 
@@ -65,7 +69,12 @@ const createProductForStore = asyncHandler(async (req, res) => {
 });
 
 const createProduct = asyncHandler(async (req, res) => {
-    const product = await Product.create(req.body);
+    const { name, quantity, image } = req.validated; // Already validated & sanitized
+    const product = await Product.create({
+      name,
+      quantity,
+      image: image || undefined,
+    });
     res.status(201).json(product);
 });
 
@@ -94,10 +103,13 @@ const updateProduct = asyncHandler(async (req, res) => {
     throw new Error('You are not authorized to update this product');
   }
 
-  const updatedProduct = await Product.findByIdAndUpdate(id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const { name, quantity, image } = req.validated; // Already validated & sanitized
+  
+  const updatedProduct = await Product.findByIdAndUpdate(
+    id,
+    { name, quantity, image: image || undefined },
+    { new: true, runValidators: true }
+  );
 
   res.status(200).json(updatedProduct);
 });

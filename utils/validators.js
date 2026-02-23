@@ -7,9 +7,9 @@
 // RFC 5322 compliant email regex (simplified but comprehensive)
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Password requirements: min 8 chars, at least 1 number, 1 symbol
+// Password requirements: NIST SP 800-63B compliant - minimum length only
+// Allows any characters (numbers, symbols, passphrases, etc.)
 const PASSWORD_MIN_LENGTH = 8;
-const PASSWORD_REGEX = /^(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
 
 // Product name: alphanumeric, spaces, hyphens, parentheses, max 200 chars
 const PRODUCT_NAME_REGEX = /^[a-zA-Z0-9\s\-()&.,]+$/;
@@ -57,7 +57,8 @@ function validateEmail(email) {
 
 /**
  * Validate password strength
- * Requirements: min 8 chars, at least 1 number, 1 special symbol
+ * NIST SP 800-63B compliant: minimum length only
+ * Allows any characters (numbers, symbols, passphrases, etc.)
  * @param {string} password - Password to validate
  * @returns {object} { valid: boolean, error: string|null }
  */
@@ -70,19 +71,8 @@ function validatePassword(password) {
     return { valid: false, error: `Password must be at least ${PASSWORD_MIN_LENGTH} characters` };
   }
 
-  if (password.length > 128) {
-    return { valid: false, error: 'Password is too long (max 128 characters)' };
-  }
-
-  if (!/\d/.test(password)) {
-    return { valid: false, error: 'Password must contain at least one number' };
-  }
-
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-    return { 
-      valid: false, 
-      error: 'Password must contain at least one special character (!@#$%^&*()_+-=[]{};\':"|,.<>/?)'
-    };
+  if (password.length > 64) {
+    return { valid: false, error: 'Password is too long (max 64 characters)' };
   }
 
   return { valid: true, error: null };

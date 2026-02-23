@@ -16,20 +16,26 @@ const {
   forgotPasswordLimiter,
   resetPasswordLimiter,
 } = require('../middleware/rateLimitMiddleware');
+const {
+  validateAuthRequest,
+  validateChangePasswordRequest,
+  validateForgotPasswordRequest,
+  validateResetPasswordRequest,
+} = require('../middleware/validationMiddleware');
 
-// Register + Login
-router.post('/register', registerUser);
-router.post('/login', loginLimiter, loginUser);
+// Register + Login with validation
+router.post('/register', validateAuthRequest, registerUser);
+router.post('/login', loginLimiter, validateAuthRequest, loginUser);
 
 // Get current user (requires JWT)
 router.get('/me', authMiddleware, getMe);
 
 // Change password (requires JWT)
-router.put('/change-password', authMiddleware, changePassword);
+router.put('/change-password', authMiddleware, validateChangePasswordRequest, changePassword);
 
 // forgot password
-router.post("/forgot-password", forgotPasswordLimiter, forgotPassword);
+router.post("/forgot-password", forgotPasswordLimiter, validateForgotPasswordRequest, forgotPassword);
 // reset password flow
-router.post("/reset-password", resetPasswordLimiter, resetPassword);
+router.post("/reset-password", resetPasswordLimiter, validateResetPasswordRequest, resetPassword);
 
 module.exports = router;

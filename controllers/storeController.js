@@ -43,39 +43,23 @@ const getStoreById = asyncHandler(async (req, res) => {
 
 // POST /api/stores
 const createStore = asyncHandler(async (req, res) => {
-    try {
-        const { name, addressText, image, geo } = req.body;
-        const ownerId = req.user?.userId;
+    const { name, addressText, image, geo } = req.validated; // Already validated & sanitized
+    const ownerId = req.user?.userId;
 
-        if (!ownerId) {
-            res.status(401);
-            throw new Error('Not authorized');
-        }
-
-        // Minimal required fields
-        if (!name || !addressText) {
-            res.status(400);
-            throw new Error('name and addressText are required');
-        }
-
-        // Optional: validate geo if provided
-        if (geo?.coordinates && (!Array.isArray(geo.coordinates) || geo.coordinates.length !== 2)) {
-            res.status(400);
-            throw new Error('geo.coordinates must be [lng, lat]');
-        }
-
-        const store = await Store.create({
-            name,
-            addressText,
-            image,
-            geo,
-            ownerId,
-        });
-
-        res.status(201).json(store);
-    } catch (error) {
-        throw new Error(error.message);
+    if (!ownerId) {
+      res.status(401);
+      throw new Error('Not authorized');
     }
+
+    const store = await Store.create({
+      name,
+      addressText,
+      image,
+      geo,
+      ownerId,
+    });
+
+    res.status(201).json(store);
 });
 
 // PUT /api/stores/:id  (owner only)
@@ -106,7 +90,7 @@ const updateStore = asyncHandler(async (req, res) => {
     }
 
     // allow updating only specific fields
-    const { name, addressText, image, geo } = req.body;
+    const { name, addressText, image, geo } = req.validated; // Already validated & sanitized
 
     if (name != null) store.name = name;
     if (addressText != null) store.addressText = addressText;
@@ -114,10 +98,6 @@ const updateStore = asyncHandler(async (req, res) => {
 
     // optional geo update (only if provided)
     if (geo?.coordinates) {
-      if (!Array.isArray(geo.coordinates) || geo.coordinates.length !== 2) {
-        res.status(400);
-        throw new Error("geo.coordinates must be [lng, lat]");
-      }
       store.geo = {
         type: "Point",
         coordinates: geo.coordinates,

@@ -3,39 +3,23 @@ const Store = require('../models/store');
 const Product = require('../models/product');
 
 const search = asyncHandler(async (req, res) => {
-  const q = (req.query.q || '').trim();
-  const location = (req.query.location || '').trim();
-
-  const lat = req.query.lat;
-  const lng = req.query.lng;
-  const radiusKm = req.query.radiusKm ?? req.query.radius; // allow either
+  const { q, location, lat, lng, radiusKm } = req.validated; // Already validated & sanitized
 
   let geoFilter = null;
 
-if (lat && lng && radiusKm) {
-  const parsedLat = Number(lat);
-  const parsedLng = Number(lng);
-  const parsedRadiusKm = Number(radiusKm);
+  if (lat && lng && radiusKm) {
+    // radiusKm is already validated by middleware
+    const earthRadiusKm = 6378.1;
+    const radiusInRadians = radiusKm / earthRadiusKm;
 
-  if ([parsedLat, parsedLng, parsedRadiusKm].some((n) => Number.isNaN(n))) {
-    res.status(400);
-    throw new Error("lat, lng, and radiusKm must be numbers");
-  }
-
-  // radius in radians = distance / earthRadius
-  const earthRadiusKm = 6378.1;
-  const radiusInRadians = parsedRadiusKm / earthRadiusKm;
-
-  // NOTE: $geoWithin + $centerSphere does not require every doc to have geo,
-  // it just excludes ones without valid geo (which is what we want).
-  geoFilter = {
-    geo: {
-      $geoWithin: {
-        $centerSphere: [[parsedLng, parsedLat], radiusInRadians],
+    geoFilter = {
+      geo: {
+        $geoWithin: {
+          $centerSphere: [[lng, lat], radiusInRadians],
+        },
       },
-    },
-  };
-}
+    };
+  }
 
   // 1) Find "location stores" first (only based on location)
   const locationStoreFilter = {};

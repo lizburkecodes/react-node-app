@@ -9,17 +9,13 @@ const User = require('../models/user');
 // Helper: validate password strength
 const validatePasswordStrength = (password) => {
   const minLength = 8;
-  const hasNumber = /\d/.test(password);
-  const hasSymbol = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+  const maxLength = 64;
 
   if (password.length < minLength) {
     throw new Error(`Password must be at least ${minLength} characters`);
   }
-  if (!hasNumber) {
-    throw new Error('Password must contain at least one number');
-  }
-  if (!hasSymbol) {
-    throw new Error('Password must contain at least one symbol (!@#$%^&*()_+-=[]{};\':"\\|,.<>/?)')
+  if (password.length > maxLength) {
+    throw new Error(`Password must not exceed ${maxLength} characters`);
   }
 };
 
@@ -35,26 +31,10 @@ const signToken = (userId) => {
 
 // POST /api/auth/register
 const registerUser = asyncHandler(async (req, res) => {
-  const { email, password, displayName } = req.body;
-
-  if (!email || !password || !displayName) {
-    res.status(400);
-    throw new Error('email, password, and displayName are required');
-  }
-
-  // Validate password strength
-  try {
-    validatePasswordStrength(password);
-  } catch (error) {
-    res.status(400);
-    throw error;
-  }
-
-  // Normalize email
-  const normalizedEmail = String(email).toLowerCase().trim();
+  const { email, password, displayName } = req.validated; // Already validated & sanitized
 
   // Check if user exists
-  const existing = await User.findOne({ email: normalizedEmail });
+  const existing = await User.findOne({ email });
   if (existing) {
     res.status(409);
     throw new Error('Email is already in use');
@@ -64,9 +44,9 @@ const registerUser = asyncHandler(async (req, res) => {
   const passwordHash = await bcrypt.hash(password, 10);
 
   const user = await User.create({
-    email: normalizedEmail,
+    email,
     passwordHash,
-    displayName: String(displayName).trim(),
+    displayName,
   });
 
   const token = signToken(user._id);
@@ -83,16 +63,9 @@ const registerUser = asyncHandler(async (req, res) => {
 
 // POST /api/auth/login
 const loginUser = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.validated; // Already validated & sanitized
 
-  if (!email || !password) {
-    res.status(400);
-    throw new Error('email and password are required');
-  }
-
-  const normalizedEmail = String(email).toLowerCase().trim();
-
-  const user = await User.findOne({ email: normalizedEmail });
+  const user = await User.findOne({ email });
   if (!user) {
     res.status(401);
     throw new Error('Invalid credentials');
@@ -118,12 +91,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
 // POST /api/auth/forgot-password
 const forgotPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    res.status(400);
-    throw new Error("Email is required");
-  }
+  const { email } = req.validated; // Already validated & sanitized
 
   const user = await User.findOne({ email });
 
@@ -194,20 +162,7 @@ const changePassword = asyncHandler(async (req, res) => {
     throw new Error('Not authorized');
   }
 
-  const { currentPassword, newPassword } = req.body;
-
-  if (!currentPassword || !newPassword) {
-    res.status(400);
-    throw new Error('currentPassword and newPassword are required');
-  }
-
-  // Validate password strength
-  try {
-    validatePasswordStrength(newPassword);
-  } catch (error) {
-    res.status(400);
-    throw error;
-  }
+  const { currentPassword, newPassword } = req.validated; // Already validated & sanitized
 
   if (currentPassword === newPassword) {
     res.status(400);
@@ -241,20 +196,7 @@ const changePassword = asyncHandler(async (req, res) => {
 
 // POST /api/auth/reset-password
 const resetPassword = asyncHandler(async (req, res) => {
-  const { token, newPassword } = req.body;
-
-  if (!token || !newPassword) {
-    res.status(400);
-    throw new Error("Token and newPassword are required");
-  }
-
-  // Validate password strength
-  try {
-    validatePasswordStrength(newPassword);
-  } catch (error) {
-    res.status(400);
-    throw error;
-  }
+  const { token, newPassword } = req.validated; // Already validated & sanitized
 
   // Hash incoming token to compare with stored hash
   const hashedToken = require("crypto")
