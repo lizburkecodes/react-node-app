@@ -3,10 +3,23 @@ const Product = require('../models/product');
 const Store = require('../models/store');
 const asyncHandler = require('express-async-handler');
 const { AppError } = require('../utils/appError');
+const { getPaginationParams, buildPaginatedResponse, parseSortParam } = require('../utils/pagination');
 
 const getProducts = asyncHandler(async (req, res) => {
-    const products = await Product.find({}).sort({ createdAt: -1 });
-    res.status(200).json(products);
+    const { page, limit, skip } = getPaginationParams(req.query);
+    const sort = parseSortParam(req.query.sort);
+
+    // Get total count for pagination metadata
+    const total = await Product.countDocuments({});
+
+    const products = await Product.find({})
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+    const response = buildPaginatedResponse(products, total, page, limit);
+    res.status(200).json(response);
 });
 
 const getProductById = asyncHandler(async (req, res) => {
@@ -21,16 +34,27 @@ const getProductById = asyncHandler(async (req, res) => {
     res.status(200).json(product);
 });
 
-// GET /api/products/store/:storeId
+// GET /api/products/store/:storeId with pagination
 const getProductsByStore = asyncHandler(async (req, res) => {
     const { storeId } = req.params;
+    const { page, limit, skip } = getPaginationParams(req.query);
+    const sort = parseSortParam(req.query.sort);
 
     if (!mongoose.Types.ObjectId.isValid(storeId)) {
         throw new AppError('Invalid store ID format', 400, 'VALIDATION_012', true);
     }
 
-    const products = await Product.find({ storeId }).sort({ createdAt: -1 });
-    res.status(200).json(products);
+    // Get total count for pagination metadata
+    const total = await Product.countDocuments({ storeId });
+
+    const products = await Product.find({ storeId })
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+    const response = buildPaginatedResponse(products, total, page, limit);
+    res.status(200).json(response);
 });
 
 // POST /api/products/store/:storeId

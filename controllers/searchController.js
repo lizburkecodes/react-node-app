@@ -1,9 +1,12 @@
 const asyncHandler = require('express-async-handler');
 const Store = require('../models/store');
 const Product = require('../models/product');
+const { getPaginationParams, buildPaginatedResponse, parseSortParam } = require('../utils/pagination');
 
 const search = asyncHandler(async (req, res) => {
   const { q, location, lat, lng, radiusKm } = req.validated; // Already validated & sanitized
+  const { page, limit, skip } = getPaginationParams(req.query);
+  const sort = parseSortParam(req.query.sort);
 
   let geoFilter = null;
 
@@ -46,9 +49,14 @@ const search = asyncHandler(async (req, res) => {
   if (q) productFilter.name = { $regex: q, $options: 'i' };
   if (location || geoFilter) productFilter.storeId = { $in: locationStoreIds };
 
+  // Get total count before pagination
+  const totalProducts = await Product.countDocuments(productFilter);
+
   const productsRaw = await Product.find(productFilter)
     .select('_id name quantity image storeId createdAt')
-    .sort({ createdAt: -1 })
+    .sort(sort)
+    .skip(skip)
+    .limit(limit)
     .lean();
 
   // 3) Stores result logic
@@ -116,10 +124,12 @@ const search = asyncHandler(async (req, res) => {
     };
   });
 
+  const productsResponse = buildPaginatedResponse(products, totalProducts, page, limit);
+
   res.status(200).json({
     query: { q, location },
     stores,
-    products,
+    ...productsResponse,
   });
 });
 

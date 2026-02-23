@@ -46,7 +46,11 @@ app.get('/blog', (req, res) => {
 
 app.use(errorMiddleware);
 
-mongoose.connect(MONGO_URL)
+mongoose.connect(MONGO_URL, {
+  maxPoolSize: 10,
+  minPoolSize: 5,
+  maxIdleTimeMS: 30000,
+})
 .then(() => {
     console.log('connected to MongoDB');
     app.listen(PORT, () => {

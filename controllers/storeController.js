@@ -1,19 +1,30 @@
 const mongoose = require('mongoose');
 const asyncHandler = require('express-async-handler');
 const { AppError } = require('../utils/appError');
+const { getPaginationParams, buildPaginatedResponse, parseSortParam } = require('../utils/pagination');
 const Store = require('../models/store'); 
 
-// GET /api/stores
+// GET /api/stores with pagination
 const getStores = asyncHandler(async (req, res) => {
-    // Optional simple filter: /api/stores?search=orlando
     const { search } = req.query;
+    const { page, limit, skip } = getPaginationParams(req.query);
+    const sort = parseSortParam(req.query.sort);
 
     const filter = search
         ? { addressText: { $regex: search, $options: 'i' } }
         : {};
 
-    const stores = await Store.find(filter).sort({ createdAt: -1 });
-    res.status(200).json(stores);
+    // Get total count for pagination metadata
+    const total = await Store.countDocuments(filter);
+
+    const stores = await Store.find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+    const response = buildPaginatedResponse(stores, total, page, limit);
+    res.status(200).json(response);
 });
 
 // GET /api/stores/:id

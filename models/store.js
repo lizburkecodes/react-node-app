@@ -47,7 +47,14 @@ const storeSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Geospatial index for location-based queries
 storeSchema.index({ geo: '2dsphere' });
+
+// Performance indexes for filtering and sorting
+storeSchema.index({ name: 1 });
+storeSchema.index({ addressText: 1 });
+storeSchema.index({ ownerId: 1 });
+storeSchema.index({ createdAt: -1 });
 
 const Store = mongoose.model('Store', storeSchema);
 module.exports = Store;

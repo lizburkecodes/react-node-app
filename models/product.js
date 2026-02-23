@@ -16,7 +16,6 @@ const productSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Store',
       required: true,
-      index: true,
     },
     image: {
         type: String,
@@ -24,6 +23,12 @@ const productSchema = new mongoose.Schema({
         trim: true,
     }
 }, { timestamps: true });
+
+// Performance indexes for filtering and sorting
+productSchema.index({ name: 1 });
+productSchema.index({ storeId: 1 });
+productSchema.index({ createdAt: -1 });
+productSchema.index({ storeId: 1, name: 1 }); // Composite index for store + search queries
 
 const Product = mongoose.model('Product', productSchema);
 
