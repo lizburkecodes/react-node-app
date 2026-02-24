@@ -87,11 +87,11 @@ const refreshTokenSchema = z.object({
 
 /**
  * Logout validation schema
- * Validates logout request
+ * Validates logout request (accepts empty body)
  */
 const logoutSchema = z.object({
   refreshToken: z.string().optional(),
-});
+}).strict();
 
 module.exports = {
   registerSchema,

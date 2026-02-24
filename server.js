@@ -24,6 +24,8 @@ const corsOption = {
     origin: FRONTEND,
     optionsSuccessStatus: 200,
     credentials: true, // Allow cookies
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
 }
 
 app.use(cors(corsOption));

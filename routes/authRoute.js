@@ -52,7 +52,7 @@ router.post('/refresh', validateBody(refreshTokenSchema), refreshAccessToken);
 router.get('/me', authMiddleware, getMe);
 
 // Logout (requires JWT)
-router.post('/logout', authMiddleware, validateBody(logoutSchema), logout);
+router.post('/logout', authMiddleware, logout);
 
 // Change password (requires JWT) with audit logging
 router.put('/change-password', authMiddleware, validateBody(changePasswordSchema), auditPasswordChange(), changePassword);

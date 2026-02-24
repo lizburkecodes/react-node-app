@@ -40,26 +40,42 @@ const signRefreshToken = (userId) => {
   return jwt.sign({ userId }, secret, { expiresIn: '7d' });
 };
 
+// Helper: create and store refresh token in database
+const createRefreshToken = async (user) => {
+  const refreshToken = signRefreshToken(user._id);
+  
+  // Store refresh token in user's array (supports multiple sessions)
+  user.refreshTokens = user.refreshTokens || [];
+  user.refreshTokens.push({
+    token: refreshToken,
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+  });
+  
+  await user.save();
+  return refreshToken;
+};
+
 // Set HTTP-only cookies with tokens
 const setTokenCookies = (res, accessToken, refreshToken) => {
   const isProduction = process.env.NODE_ENV === 'production';
   
-  // Set Access Token cookie (15 minutes, HttpOnly, Secure, SameSite)
-  res.cookie('accessToken', accessToken, {
+  const cookieOptions = {
     httpOnly: true,
     secure: isProduction, // Only HTTPS in production
-    sameSite: 'Strict',
+    sameSite: isProduction ? 'Strict' : 'Lax', // Lax works with proxy in development
     maxAge: 15 * 60 * 1000, // 15 minutes
     path: '/',
+  };
+  
+  // Set Access Token cookie
+  res.cookie('accessToken', accessToken, {
+    ...cookieOptions,
   });
 
-  // Set Refresh Token cookie (7 days, HttpOnly, Secure, SameSite)
+  // Set Refresh Token cookie
   res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'Strict',
+    ...cookieOptions,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    path: '/',
   });
 };
 
@@ -351,17 +367,20 @@ const logout = asyncHandler(async (req, res) => {
     throw AppError.UNAUTHORIZED();
   }
 
-  const user = await User.findById(userId);
-  if (!user) {
-    throw AppError.USER_NOT_FOUND();
-  }
-
-  // Remove all refresh tokens (logout from all devices)
-  user.refreshTokens = [];
-  await user.save();
-
-  // Clear token cookies
+  // Clear token cookies first
   clearTokenCookies(res);
+
+  // Remove all refresh tokens from database (optional for security, but not critical)
+  try {
+    const user = await User.findById(userId);
+    if (user) {
+      user.refreshTokens = [];
+      await user.save();
+    }
+  } catch (err) {
+    // Log the error but don't fail the logout - cookies are already cleared
+    console.error('Error clearing refresh tokens:', err.message);
+  }
 
   res.status(200).json({
     message: 'Logged out successfully',
