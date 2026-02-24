@@ -60,13 +60,12 @@ const imageUrlSchema = z
 
 /**
  * Create product validation schema
- * Validates product creation data
+ * Validates product creation data (storeId comes from URL params)
  */
 const createProductSchema = z.object({
   name: productNameSchema,
   quantity: quantitySchema,
   image: imageUrlSchema,
-  storeId: z.string().min(1, "Store ID is required"),
 });
 
 /**

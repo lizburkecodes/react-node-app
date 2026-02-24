@@ -40,10 +40,10 @@ const {
   auditPasswordChange,
 } = require('../middleware/auditMiddleware');
 
-// Register with rate limiting, validation and audit logging
-router.post('/register', registerLimiter, validateBody(registerSchema), auditAuthAttempt(), registerUser);
-// Login with rate limiting, validation and audit logging
-router.post('/login', loginLimiter, validateBody(loginSchema), auditAuthAttempt(), loginUser);
+// Register with rate limiting and validation
+router.post('/register', registerLimiter, validateBody(registerSchema), registerUser);
+// Login with rate limiting and validation
+router.post('/login', loginLimiter, validateBody(loginSchema), loginUser);
 
 // Refresh access token (no auth required, uses refresh token in body)
 router.post('/refresh', validateBody(refreshTokenSchema), refreshAccessToken);
