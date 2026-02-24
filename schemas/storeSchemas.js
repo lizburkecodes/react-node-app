@@ -10,8 +10,8 @@ const storeNameSchema = z
   .max(150, "Store name must not exceed 150 characters")
   .trim()
   .refine(
-    (name) => /^[a-zA-Z0-9\s\-_.,'&()]+$/.test(name),
-    "Store name can only contain letters, numbers, spaces, and basic punctuation (- _ . , ' &)"
+    (name) => /^[a-zA-Z0-9\s\-_.,'&()#]+$/.test(name),
+    "Store name can only contain letters, numbers, spaces, and basic punctuation (- _ . , ' & #)"
   );
 
 /**
