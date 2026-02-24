@@ -40,18 +40,33 @@ const signRefreshToken = (userId) => {
   return jwt.sign({ userId }, secret, { expiresIn: '7d' });
 };
 
-// Helper: store refresh token in database and return it
-const createRefreshToken = async (user) => {
-  const refreshToken = signRefreshToken(user._id);
+// Set HTTP-only cookies with tokens
+const setTokenCookies = (res, accessToken, refreshToken) => {
+  const isProduction = process.env.NODE_ENV === 'production';
   
-  // Add refresh token to user's tokens array
-  user.refreshTokens.push({
-    token: refreshToken,
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+  // Set Access Token cookie (15 minutes, HttpOnly, Secure, SameSite)
+  res.cookie('accessToken', accessToken, {
+    httpOnly: true,
+    secure: isProduction, // Only HTTPS in production
+    sameSite: 'Strict',
+    maxAge: 15 * 60 * 1000, // 15 minutes
+    path: '/',
   });
 
-  await user.save();
-  return refreshToken;
+  // Set Refresh Token cookie (7 days, HttpOnly, Secure, SameSite)
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'Strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: '/',
+  });
+};
+
+// Clear token cookies
+const clearTokenCookies = (res) => {
+  res.clearCookie('accessToken', { path: '/' });
+  res.clearCookie('refreshToken', { path: '/' });
 };
 
 // POST /api/auth/register
@@ -77,9 +92,10 @@ const registerUser = asyncHandler(async (req, res) => {
   const accessToken = signAccessToken(user._id);
   const refreshToken = await createRefreshToken(user);
 
+  // Set tokens as HttpOnly cookies
+  setTokenCookies(res, accessToken, refreshToken);
+
   res.status(201).json({
-    accessToken,
-    refreshToken,
     user: {
       _id: user._id,
       email: user.email,
@@ -126,9 +142,10 @@ const loginUser = asyncHandler(async (req, res) => {
   const accessToken = signAccessToken(user._id);
   const refreshToken = await createRefreshToken(user);
 
+  // Set tokens as HttpOnly cookies
+  setTokenCookies(res, accessToken, refreshToken);
+
   res.status(200).json({
-    accessToken,
-    refreshToken,
     user: {
       _id: user._id,
       email: user.email,
@@ -280,7 +297,7 @@ const resetPassword = asyncHandler(async (req, res) => {
 
 // POST /api/auth/refresh
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const { refreshToken } = req.body;
+  const refreshToken = req.cookies.refreshToken;
 
   if (!refreshToken) {
     throw new AppError('Refresh token is required', 400, 'VALIDATION_014', true);
@@ -318,9 +335,11 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   user.refreshTokens = user.refreshTokens.filter((t) => t.token !== refreshToken);
   const newRefreshToken = await createRefreshToken(user);
 
+  // Set new tokens as HttpOnly cookies
+  setTokenCookies(res, newAccessToken, newRefreshToken);
+
   res.status(200).json({
-    accessToken: newAccessToken,
-    refreshToken: newRefreshToken,
+    message: 'Token refreshed successfully',
   });
 });
 
@@ -332,22 +351,17 @@ const logout = asyncHandler(async (req, res) => {
     throw AppError.UNAUTHORIZED();
   }
 
-  const { refreshToken } = req.body;
-
   const user = await User.findById(userId);
   if (!user) {
     throw AppError.USER_NOT_FOUND();
   }
 
-  // Remove specific refresh token
-  if (refreshToken) {
-    user.refreshTokens = user.refreshTokens.filter((t) => t.token !== refreshToken);
-  } else {
-    // If no specific token, logout from all devices
-    user.refreshTokens = [];
-  }
-
+  // Remove all refresh tokens (logout from all devices)
+  user.refreshTokens = [];
   await user.save();
+
+  // Clear token cookies
+  clearTokenCookies(res);
 
   res.status(200).json({
     message: 'Logged out successfully',

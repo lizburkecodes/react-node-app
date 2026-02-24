@@ -3,6 +3,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 const express = require('express');
 const mongoose = require('mongoose');
+const cookieParser = require('cookie-parser');
 
 // routes 
 const productRoute = require('./routes/productRoute');
@@ -21,12 +22,14 @@ const FRONTEND = process.env.FRONTEND;
 
 const corsOption = {
     origin: FRONTEND,
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
+    credentials: true, // Allow cookies
 }
 
 app.use(cors(corsOption));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser()); // Parse cookies
 
 // routes
 app.use('/api/products', productRoute);
