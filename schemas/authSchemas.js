@@ -18,10 +18,10 @@ const passwordSchema = z
  * Validates new user registration data
  */
 const registerSchema = z.object({
-  name: z
+  displayName: z
     .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(100, "Name must not exceed 100 characters")
+    .min(2, "Display name must be at least 2 characters")
+    .max(100, "Display name must not exceed 100 characters")
     .trim(),
   email: emailSchema,
   password: passwordSchema,
@@ -47,10 +47,6 @@ const loginSchema = z.object({
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
   newPassword: passwordSchema,
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "New passwords don't match",
-  path: ["confirmPassword"],
 }).refine((data) => data.currentPassword !== data.newPassword, {
   message: "New password must be different from current password",
   path: ["newPassword"],

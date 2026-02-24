@@ -1,5 +1,5 @@
 const { ZodError } = require("zod");
-const AppError = require("../utils/appError");
+const { AppError } = require("../utils/appError");
 
 /**
  * Validation middleware factory
@@ -33,19 +33,23 @@ const validateRequest = (schema, source = "body") => {
     } catch (error) {
       if (error instanceof ZodError) {
         // Format Zod validation errors into user-friendly message
-        const errors = error.errors.map((err) => ({
-          field: err.path.join("."),
-          message: err.message,
+        // Use error.issues which is the standard non-deprecated approach
+        const errors = (error.issues || []).map((issue) => ({
+          field: (issue.path || []).join(".") || "form",
+          message: issue.message || "Unknown validation error",
         }));
 
-        return next(
-          new AppError(
-            "Validation Error",
-            422,
-            "VALIDATION_ERROR",
-            errors
-          )
+        // Create AppError with validation details
+        const appError = new AppError(
+          errors.length > 0 ? errors[0].message : "Validation Error",
+          422,
+          "VALIDATION_ERROR",
+          true
         );
+        // Attach validation errors to the error object
+        appError.validationErrors = errors;
+
+        return next(appError);
       }
 
       next(error);
