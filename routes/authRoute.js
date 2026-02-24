@@ -21,11 +21,19 @@ const {
 } = require('../middleware/rateLimitMiddleware');
 
 const {
-  validateAuthRequest,
-  validateChangePasswordRequest,
-  validateForgotPasswordRequest,
-  validateResetPasswordRequest,
+  validateBody,
+  validateQuery,
 } = require('../middleware/validationMiddleware');
+
+const {
+  registerSchema,
+  loginSchema,
+  changePasswordSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  refreshTokenSchema,
+  logoutSchema,
+} = require('../schemas/authSchemas');
 
 const {
   auditAuthAttempt,
@@ -33,25 +41,25 @@ const {
 } = require('../middleware/auditMiddleware');
 
 // Register with rate limiting, validation and audit logging
-router.post('/register', registerLimiter, validateAuthRequest, auditAuthAttempt(), registerUser);
+router.post('/register', registerLimiter, validateBody(registerSchema), auditAuthAttempt(), registerUser);
 // Login with rate limiting, validation and audit logging
-router.post('/login', loginLimiter, validateAuthRequest, auditAuthAttempt(), loginUser);
+router.post('/login', loginLimiter, validateBody(loginSchema), auditAuthAttempt(), loginUser);
 
 // Refresh access token (no auth required, uses refresh token in body)
-router.post('/refresh', refreshAccessToken);
+router.post('/refresh', validateBody(refreshTokenSchema), refreshAccessToken);
 
 // Get current user (requires JWT)
 router.get('/me', authMiddleware, getMe);
 
 // Logout (requires JWT)
-router.post('/logout', authMiddleware, logout);
+router.post('/logout', authMiddleware, validateBody(logoutSchema), logout);
 
 // Change password (requires JWT) with audit logging
-router.put('/change-password', authMiddleware, validateChangePasswordRequest, auditPasswordChange(), changePassword);
+router.put('/change-password', authMiddleware, validateBody(changePasswordSchema), auditPasswordChange(), changePassword);
 
 // forgot password with rate limiting
-router.post("/forgot-password", forgotPasswordLimiter, validateForgotPasswordRequest, forgotPassword);
+router.post("/forgot-password", forgotPasswordLimiter, validateBody(forgotPasswordSchema), forgotPassword);
 // reset password flow with rate limiting
-router.post("/reset-password", resetPasswordLimiter, validateResetPasswordRequest, resetPassword);
+router.post("/reset-password", resetPasswordLimiter, validateBody(resetPasswordSchema), resetPassword);
 
 module.exports = router;

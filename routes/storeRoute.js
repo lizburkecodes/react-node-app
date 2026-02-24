@@ -2,13 +2,23 @@ const express = require('express');
 const router = express.Router();
 
 const authMiddleware = require('../middleware/authMiddleware');
-const { validateStoreRequest, validateProductRequest } = require('../middleware/validationMiddleware');
+const { validateBody, validateParams } = require('../middleware/validationMiddleware');
 const { auditLog } = require('../middleware/auditMiddleware');
 const {
   createStoreLimiter,
   updateStoreLimiter,
   createProductLimiter,
 } = require('../middleware/rateLimitMiddleware');
+
+const {
+  createStoreSchema,
+  updateStoreSchema,
+  storeIdSchema,
+} = require('../schemas/storeSchemas');
+
+const {
+  createProductSchema,
+} = require('../schemas/productSchemas');
 
 const {
   getStores,
@@ -24,16 +34,16 @@ const {
 
 // store -> products (public for now)
 router.get('/:storeId/products', getProductsByStore);
-router.post('/:storeId/products', authMiddleware, createProductLimiter, validateProductRequest, auditLog('PRODUCT_CREATE', 'Product'), createProductForStore);
+router.post('/:storeId/products', authMiddleware, createProductLimiter, validateBody(createProductSchema), auditLog('PRODUCT_CREATE', 'Product'), createProductForStore);
 
 // get all stores
 router.get('/', getStores);
 
 // create store with rate limit, validation, and audit log
-router.post('/', authMiddleware, createStoreLimiter, validateStoreRequest, auditLog('STORE_CREATE', 'Store'), createStore);
+router.post('/', authMiddleware, createStoreLimiter, validateBody(createStoreSchema), auditLog('STORE_CREATE', 'Store'), createStore);
 
 // update store with rate limit, validation, and audit log
-router.put('/:id', authMiddleware, updateStoreLimiter, validateStoreRequest, auditLog('STORE_UPDATE', 'Store'), updateStore);
+router.put('/:id', authMiddleware, updateStoreLimiter, validateBody(updateStoreSchema), auditLog('STORE_UPDATE', 'Store'), updateStore);
 
 // get one store (keep last)
 router.get('/:id', getStoreById);
