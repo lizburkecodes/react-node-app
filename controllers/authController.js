@@ -20,14 +20,38 @@ const validatePasswordStrength = (password) => {
   }
 };
 
-// Helper: sign JWT
-const signToken = (userId) => {
+// Helper: sign JWT Access Token (15 minutes)
+const signAccessToken = (userId) => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new AppError('JWT_SECRET is not set in environment variables', 500, 'CONFIG_001', false);
   }
 
+  return jwt.sign({ userId }, secret, { expiresIn: '15m' });
+};
+
+// Helper: sign JWT Refresh Token (7 days)
+const signRefreshToken = (userId) => {
+  const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    throw new AppError('JWT_REFRESH_SECRET is not set in environment variables', 500, 'CONFIG_001', false);
+  }
+
   return jwt.sign({ userId }, secret, { expiresIn: '7d' });
+};
+
+// Helper: store refresh token in database and return it
+const createRefreshToken = async (user) => {
+  const refreshToken = signRefreshToken(user._id);
+  
+  // Add refresh token to user's tokens array
+  user.refreshTokens.push({
+    token: refreshToken,
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+  });
+
+  await user.save();
+  return refreshToken;
 };
 
 // POST /api/auth/register
@@ -49,10 +73,13 @@ const registerUser = asyncHandler(async (req, res) => {
     displayName,
   });
 
-  const token = signToken(user._id);
+  // Create access and refresh tokens
+  const accessToken = signAccessToken(user._id);
+  const refreshToken = await createRefreshToken(user);
 
   res.status(201).json({
-    token,
+    accessToken,
+    refreshToken,
     user: {
       _id: user._id,
       email: user.email,
@@ -95,10 +122,13 @@ const loginUser = asyncHandler(async (req, res) => {
   user.lastLoginAt = new Date();
   await user.save();
 
-  const token = signToken(user._id);
+  // Create access and refresh tokens
+  const accessToken = signAccessToken(user._id);
+  const refreshToken = await createRefreshToken(user);
 
   res.status(200).json({
-    token,
+    accessToken,
+    refreshToken,
     user: {
       _id: user._id,
       email: user.email,
@@ -248,6 +278,82 @@ const resetPassword = asyncHandler(async (req, res) => {
   });
 });
 
+// POST /api/auth/refresh
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    throw new AppError('Refresh token is required', 400, 'VALIDATION_014', true);
+  }
+
+  const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+
+  // Verify refresh token
+  let decoded;
+  try {
+    decoded = jwt.verify(refreshToken, secret);
+  } catch (err) {
+    throw new AppError('Invalid or expired refresh token', 401, 'AUTH_004', true);
+  }
+
+  // Find user and check if refresh token exists
+  const user = await User.findById(decoded.userId);
+  if (!user) {
+    throw AppError.USER_NOT_FOUND();
+  }
+
+  // Verify refresh token is in user's tokens array and not expired
+  const tokenEntry = user.refreshTokens.find(
+    (t) => t.token === refreshToken && t.expiresAt > Date.now()
+  );
+
+  if (!tokenEntry) {
+    throw new AppError('Refresh token has expired or is invalid', 401, 'AUTH_004', true);
+  }
+
+  // Generate new access token
+  const newAccessToken = signAccessToken(user._id);
+
+  // Optionally rotate refresh token: remove old, create new
+  user.refreshTokens = user.refreshTokens.filter((t) => t.token !== refreshToken);
+  const newRefreshToken = await createRefreshToken(user);
+
+  res.status(200).json({
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
+  });
+});
+
+// POST /api/auth/logout
+const logout = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId;
+
+  if (!userId) {
+    throw AppError.UNAUTHORIZED();
+  }
+
+  const { refreshToken } = req.body;
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw AppError.USER_NOT_FOUND();
+  }
+
+  // Remove specific refresh token
+  if (refreshToken) {
+    user.refreshTokens = user.refreshTokens.filter((t) => t.token !== refreshToken);
+  } else {
+    // If no specific token, logout from all devices
+    user.refreshTokens = [];
+  }
+
+  await user.save();
+
+  res.status(200).json({
+    message: 'Logged out successfully',
+  });
+});
+
 module.exports = {
   registerUser,
   loginUser,
@@ -255,4 +361,6 @@ module.exports = {
   changePassword,
   forgotPassword,
   resetPassword,
+  refreshAccessToken,
+  logout,
 };

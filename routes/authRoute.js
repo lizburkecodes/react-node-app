@@ -8,6 +8,8 @@ const {
   changePassword,
   forgotPassword,
   resetPassword,
+  refreshAccessToken,
+  logout,
 } = require('../controllers/authController');
 
 const authMiddleware = require('../middleware/authMiddleware');
@@ -35,8 +37,14 @@ router.post('/register', registerLimiter, validateAuthRequest, auditAuthAttempt(
 // Login with rate limiting, validation and audit logging
 router.post('/login', loginLimiter, validateAuthRequest, auditAuthAttempt(), loginUser);
 
+// Refresh access token (no auth required, uses refresh token in body)
+router.post('/refresh', refreshAccessToken);
+
 // Get current user (requires JWT)
 router.get('/me', authMiddleware, getMe);
+
+// Logout (requires JWT)
+router.post('/logout', authMiddleware, logout);
 
 // Change password (requires JWT) with audit logging
 router.put('/change-password', authMiddleware, validateChangePasswordRequest, auditPasswordChange(), changePassword);
