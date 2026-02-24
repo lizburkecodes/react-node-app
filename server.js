@@ -12,6 +12,7 @@ const searchRoute = require('./routes/searchRoute');
 const authRoute = require('./routes/authRoute');
 
 const errorMiddleware = require('./middleware/errorMiddleware');
+const { csrfErrorHandler } = require('./middleware/csrfMiddleware');
 const cors = require('cors');
 
 const app = express();
@@ -25,7 +26,7 @@ const corsOption = {
     optionsSuccessStatus: 200,
     credentials: true, // Allow cookies
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
 }
 
 app.use(cors(corsOption));
@@ -48,6 +49,9 @@ app.get('/', (req, res) => {
 app.get('/blog', (req, res) => {
   res.send('Hello Blog Route..');
 })
+
+// CSRF error handler (must be before general error middleware)
+app.use(csrfErrorHandler);
 
 app.use(errorMiddleware);
 
