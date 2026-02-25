@@ -7,7 +7,7 @@ const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
 function buildQuery(name) {
   const q = String(name || "").trim();
   if (!q) return "";
-  return `${q} product photo`;
+  return q;
 }
 
 // Optional: simple shuffle so you don't always get the same first image
@@ -32,15 +32,14 @@ const suggestImage = asyncHandler(async (req, res) => {
   }
 
   const PER_PAGE = 12;
+  const randomPage = Math.floor(Math.random() * 5) + 1; // Random page 1-5 for variety
 
   const response = await axios.get("https://api.pexels.com/v1/search", {
     headers: { Authorization: PEXELS_API_KEY },
     params: {
       query,
+      page: randomPage,
       per_page: PER_PAGE,
-      orientation: "square",
-      size: "medium",
-      locale: "en-US",
     },
   });
 
