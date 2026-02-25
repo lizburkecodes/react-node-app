@@ -4,14 +4,14 @@ const Product = require('../models/product');
 const { getPaginationParams, buildPaginatedResponse, parseSortParam } = require('../utils/pagination');
 
 const search = asyncHandler(async (req, res) => {
-  const { q, location, lat, lng, radiusKm } = req.validated; // Already validated & sanitized
+  const { q, lat, lng, radiusKm } = req.validated; // Already validated & sanitized
   const { page, limit, skip } = getPaginationParams(req.query);
   const sort = parseSortParam(req.query.sort);
 
   let geoFilter = null;
 
   if (lat && lng && radiusKm) {
-    // radiusKm is already validated by middleware
+    // radiusKm is already in km
     const earthRadiusKm = 6378.1;
     const radiusInRadians = radiusKm / earthRadiusKm;
 
@@ -26,11 +26,6 @@ const search = asyncHandler(async (req, res) => {
 
   // 1) Find "location stores" first (only based on location)
   const locationStoreFilter = {};
-
-  // location text
-  if (location) {
-    locationStoreFilter.addressText = { $regex: location, $options: "i" };
-  }
 
   // geo radius
   if (geoFilter) {
@@ -47,7 +42,7 @@ const search = asyncHandler(async (req, res) => {
   // 2) Products: match q AND match location storeIds (if provided)
   const productFilter = {};
   if (q) productFilter.name = { $regex: q, $options: 'i' };
-  if (location || geoFilter) productFilter.storeId = { $in: locationStoreIds };
+  if (geoFilter) productFilter.storeId = { $in: locationStoreIds };
 
   // Get total count before pagination
   const totalProducts = await Product.countDocuments(productFilter);
@@ -79,10 +74,7 @@ const search = asyncHandler(async (req, res) => {
       ],
     };
 
-    // If location is also present, restrict to those stores
-    if (location) {
-      storeFilter.addressText = { $regex: location, $options: "i" };
-    }
+    // If geo filter is present, restrict to those stores
     if (geoFilter) {
       Object.assign(storeFilter, geoFilter);
     }
@@ -127,7 +119,7 @@ const search = asyncHandler(async (req, res) => {
   const productsResponse = buildPaginatedResponse(products, totalProducts, page, limit);
 
   res.status(200).json({
-    query: { q, location },
+    query: { q },
     stores,
     ...productsResponse,
   });

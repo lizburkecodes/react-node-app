@@ -7,7 +7,7 @@ const { searchSchema } = require('../schemas/storeSchemas');
 
 const { search } = require('../controllers/searchController');
 
-// GET /api/search?q=milk&location=orlando with rate limiting
+// GET /api/search?q=milk&lat=28.6&lng=-81.3&radiusKm=10 with rate limiting
 router.get('/', searchLimiter, validateQuery(searchSchema), search);
 
 module.exports = router;

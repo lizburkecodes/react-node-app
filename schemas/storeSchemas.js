@@ -108,18 +108,18 @@ const searchSchema = z.object({
     )
     .optional()
     .or(z.literal("")),
-  latitude: latitudeSchema.optional(),
-  longitude: longitudeSchema.optional(),
-  radius: z
+  lat: latitudeSchema.optional(),
+  lng: longitudeSchema.optional(),
+  radiusKm: z
     .union([z.number(), z.string()])
     .refine(
       (val) => {
-        const num = typeof val === "string" ? parseInt(val, 10) : val;
-        return Number.isInteger(num) && num > 0 && num <= 50000;
+        const num = typeof val === "string" ? parseFloat(val) : val;
+        return !isNaN(num) && num > 0 && num <= 50000;
       },
-      "Radius must be an integer between 1 and 50000 meters"
+      "Radius must be a number between 1 and 50000 km"
     )
-    .transform((val) => (typeof val === "string" ? parseInt(val, 10) : val))
+    .transform((val) => (typeof val === "string" ? parseFloat(val) : val))
     .optional(),
   page: z
     .union([z.number(), z.string()])
