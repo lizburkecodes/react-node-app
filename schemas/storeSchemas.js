@@ -108,6 +108,13 @@ const searchSchema = z.object({
     )
     .optional()
     .or(z.literal("")),
+  location: z
+    .string()
+    .min(1, "Location must be at least 1 character")
+    .max(500, "Location must not exceed 500 characters")
+    .trim()
+    .optional()
+    .or(z.literal("")),
   lat: latitudeSchema.optional(),
   lng: longitudeSchema.optional(),
   radiusKm: z

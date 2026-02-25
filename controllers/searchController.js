@@ -4,7 +4,7 @@ const Product = require('../models/product');
 const { getPaginationParams, buildPaginatedResponse, parseSortParam } = require('../utils/pagination');
 
 const search = asyncHandler(async (req, res) => {
-  const { q, lat, lng, radiusKm } = req.validated; // Already validated & sanitized
+  const { q, location, lat, lng, radiusKm } = req.validated; // Already validated & sanitized
   const { page, limit, skip } = getPaginationParams(req.query);
   const sort = parseSortParam(req.query.sort);
 
@@ -27,7 +27,12 @@ const search = asyncHandler(async (req, res) => {
   // 1) Find "location stores" first (only based on location)
   const locationStoreFilter = {};
 
-  // geo radius
+  // location text filter
+  if (location) {
+    locationStoreFilter.addressText = { $regex: location, $options: "i" };
+  }
+
+  // geo radius filter
   if (geoFilter) {
     Object.assign(locationStoreFilter, geoFilter);
   }
@@ -42,7 +47,7 @@ const search = asyncHandler(async (req, res) => {
   // 2) Products: match q AND match location storeIds (if provided)
   const productFilter = {};
   if (q) productFilter.name = { $regex: q, $options: 'i' };
-  if (geoFilter) productFilter.storeId = { $in: locationStoreIds };
+  if (location || geoFilter) productFilter.storeId = { $in: locationStoreIds };
 
   // Get total count before pagination
   const totalProducts = await Product.countDocuments(productFilter);
@@ -119,7 +124,7 @@ const search = asyncHandler(async (req, res) => {
   const productsResponse = buildPaginatedResponse(products, totalProducts, page, limit);
 
   res.status(200).json({
-    query: { q },
+    query: { q, location },
     stores,
     ...productsResponse,
   });
