@@ -2,6 +2,7 @@ if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
 }
 const express = require('express');
+const path = require('path');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 
@@ -33,6 +34,9 @@ app.use(cors(corsOption));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser()); // Parse cookies
+
+// Serve uploaded images
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // routes
 app.use('/api/products', productRoute);

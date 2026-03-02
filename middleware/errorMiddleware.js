@@ -24,6 +24,10 @@ const errorMiddleware = (err, req, res, next) => {
         appError = AppError.TOKEN_INVALID();
       } else if (err.name === 'TokenExpiredError') {
         appError = AppError.TOKEN_EXPIRED();
+      } else if (err.code === 'LIMIT_FILE_SIZE') {
+        appError = new AppError('File too large. Maximum size is 5 MB', 400, 'FILE_002', true);
+      } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        appError = new AppError('Unexpected file field in upload', 400, 'FILE_003', true);
       } else {
         // Unknown error - don't expose details in production
         appError = new AppError(

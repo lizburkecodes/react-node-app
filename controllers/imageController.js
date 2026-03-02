@@ -1,8 +1,47 @@
 const asyncHandler = require("express-async-handler");
 const axios = require("axios");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const crypto = require("crypto");
 const { AppError } = require('../utils/appError');
 
 const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
+
+// ============================================================================
+// MULTER - FILE UPLOAD CONFIGURATION
+// ============================================================================
+
+const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+    cb(null, UPLOADS_DIR);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = crypto.randomBytes(16).toString('hex');
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${uniqueSuffix}${ext}`);
+  },
+});
+
+const fileFilter = (req, file, cb) => {
+  const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  if (allowed.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new AppError('Only image files are allowed (JPEG, PNG, GIF, WebP)', 400, 'FILE_001', true), false);
+  }
+};
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  fileFilter,
+});
 
 function buildQuery(name) {
   const q = String(name || "").trim();
@@ -71,4 +110,19 @@ const suggestImage = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { suggestImage };
+// ============================================================================
+// UPLOAD IMAGE
+// ============================================================================
+
+const uploadImage = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new AppError('No file uploaded', 400, 'FILE_003', true);
+  }
+
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
+
+  res.status(200).json({ imageUrl });
+});
+
+module.exports = { suggestImage, upload, uploadImage };

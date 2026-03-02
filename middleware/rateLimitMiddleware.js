@@ -149,6 +149,17 @@ const imageSuggestionLimiter = rateLimit({
   skipSuccessfulRequests: false,
 });
 
+// Image upload limiter: 30 uploads per hour per user (authenticated)
+const imageUploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  message: 'Too many image uploads. Please try again after an hour',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: false,
+  keyGenerator: createKeyGenerator(true),
+});
+
 // General API limiter: 1000 per hour per IP (fallback for other endpoints)
 const generalApiLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -175,5 +186,6 @@ module.exports = {
   // Search & Public
   searchLimiter,
   imageSuggestionLimiter,
+  imageUploadLimiter,
   generalApiLimiter,
 };
