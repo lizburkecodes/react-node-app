@@ -4,6 +4,7 @@ const Product = require('../models/product');
 const { getPaginationParams, buildPaginatedResponse, parseSortParam } = require('../utils/pagination');
 
 const search = asyncHandler(async (req, res) => {
+  // q (keyword), location (text), lat, lng, radiusKm (geo)
   const { q, location, lat, lng, radiusKm } = req.validated; // Already validated & sanitized
   const { page, limit, skip } = getPaginationParams(req.query);
   const sort = parseSortParam(req.query.sort);
@@ -27,9 +28,10 @@ const search = asyncHandler(async (req, res) => {
   // 1) Find "location stores" first (only based on location)
   const locationStoreFilter = {};
 
-  // location text filter
+  // location text filter — $text uses the (name, addressText) text index;
+  // much cheaper than a full-collection $regex scan
   if (location) {
-    locationStoreFilter.addressText = { $regex: location, $options: "i" };
+    locationStoreFilter.$text = { $search: location };
   }
 
   // geo radius filter
@@ -45,49 +47,59 @@ const search = asyncHandler(async (req, res) => {
   const locationStoreIds = locationStores.map((s) => s._id);
 
   // 2) Products: match q AND match location storeIds (if provided)
+  // $text uses the name text index — avoids the full-collection $regex scan
   const productFilter = {};
-  if (q) productFilter.name = { $regex: q, $options: 'i' };
+  if (q) productFilter.$text = { $search: q };
   if (location || geoFilter) productFilter.storeId = { $in: locationStoreIds };
 
-  // Get total count before pagination
-  const totalProducts = await Product.countDocuments(productFilter);
-
-  const productsRaw = await Product.find(productFilter)
-    .select('_id name quantity image storeId createdAt')
-    .sort(sort)
-    .skip(skip)
-    .limit(limit)
-    .lean();
+  // countDocuments and find are independent — run them in parallel
+  const [totalProducts, productsRaw] = await Promise.all([
+    Product.countDocuments(productFilter),
+    Product.find(productFilter)
+      .select('_id name quantity image storeId createdAt')
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+  ]);
 
   // 3) Stores result logic
   let stores = [];
 
   if (q) {
-    const qRegex = { $regex: q, $options: 'i' };
-
-    // Store IDs from matching products
+    // $text cannot appear inside $or, so we run two queries in parallel:
+    //   a) stores whose name/addressText matches q via the text index
+    //   b) stores that own a product matching q (looked up by ID)
+    // then deduplicate the merged results in memory.
     const productStoreIds = [
       ...new Set(productsRaw.map((p) => String(p.storeId))),
     ];
 
-    const storeFilter = {
-      $or: [
-        { name: qRegex },
-        ...(productStoreIds.length
-          ? [{ _id: { $in: productStoreIds } }]
-          : []),
-      ],
-    };
+    const storeQueries = [
+      Store.find({ $text: { $search: q }, ...(geoFilter || {}) })
+        .select('_id name addressText image geo ownerId')
+        .sort({ createdAt: -1 })
+        .lean(),
+    ];
 
-    // If geo filter is present, restrict to those stores
-    if (geoFilter) {
-      Object.assign(storeFilter, geoFilter);
+    if (productStoreIds.length) {
+      storeQueries.push(
+        Store.find({ _id: { $in: productStoreIds }, ...(geoFilter || {}) })
+          .select('_id name addressText image geo ownerId')
+          .lean()
+      );
     }
 
-    stores = await Store.find(storeFilter)
-      .select('_id name addressText image geo ownerId')
-      .sort({ createdAt: -1 })
-      .lean();
+    const storeResults = await Promise.all(storeQueries);
+
+    // Deduplicate: a store can appear in both result sets
+    const seenIds = new Set();
+    stores = storeResults.flat().filter((s) => {
+      const id = String(s._id);
+      if (seenIds.has(id)) return false;
+      seenIds.add(id);
+      return true;
+    });
   } else {
     // No q → just return location-based stores (or all stores if no location)
     stores = locationStores;
