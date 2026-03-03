@@ -15,7 +15,7 @@ const authMiddleware = asyncHandler(async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Check if password was changed after token was issued
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(decoded.userId).select('passwordChangedAt').lean();
     if (!user) {
       res.status(401);
       throw new Error('Not authorized, user not found');
