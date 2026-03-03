@@ -2,6 +2,8 @@ const asyncHandler = require('express-async-handler');
 const Store = require('../models/store');
 const Product = require('../models/product');
 const { getPaginationParams, buildPaginatedResponse, parseSortParam } = require('../utils/pagination');
+// To prevent abuse, limit the number of stores returned in search results. This is a soft limit
+const STORES_LIMIT = 200;
 
 const search = asyncHandler(async (req, res) => {
   // q (keyword), location (text), lat, lng, radiusKm (geo)
@@ -42,6 +44,7 @@ const search = asyncHandler(async (req, res) => {
   const locationStores = await Store.find(locationStoreFilter)
     .select('_id name addressText image geo ownerId')
     .sort({ createdAt: -1 })
+    .limit(STORES_LIMIT)
     .lean();
 
   const locationStoreIds = locationStores.map((s) => s._id);
@@ -79,6 +82,7 @@ const search = asyncHandler(async (req, res) => {
       Store.find({ $text: { $search: q }, ...(geoFilter || {}) })
         .select('_id name addressText image geo ownerId')
         .sort({ createdAt: -1 })
+        .limit(STORES_LIMIT)
         .lean(),
     ];
 
@@ -86,6 +90,7 @@ const search = asyncHandler(async (req, res) => {
       storeQueries.push(
         Store.find({ _id: { $in: productStoreIds }, ...(geoFilter || {}) })
           .select('_id name addressText image geo ownerId')
+          .limit(STORES_LIMIT)
           .lean()
       );
     }
