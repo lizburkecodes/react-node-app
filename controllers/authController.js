@@ -43,14 +43,16 @@ const signRefreshToken = (userId) => {
 // Helper: create and store refresh token in database
 const createRefreshToken = async (user) => {
   const refreshToken = signRefreshToken(user._id);
-  
-  // Store refresh token in user's array (supports multiple sessions)
-  user.refreshTokens = user.refreshTokens || [];
-  user.refreshTokens.push({
-    token: refreshToken,
-    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-  });
-  
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  // Prune already-expired tokens before pushing the new one so the array
+  // doesn't grow unboundedly for users who never explicitly log out
+  user.refreshTokens = (user.refreshTokens || []).filter(
+    (t) => t.expiresAt > Date.now()
+  );
+
+  user.refreshTokens.push({ token: refreshToken, expiresAt });
+
   await user.save();
   return refreshToken;
 };
