@@ -29,6 +29,7 @@ productSchema.index({ name: 1 });
 productSchema.index({ storeId: 1 });
 productSchema.index({ createdAt: -1 });
 productSchema.index({ storeId: 1, name: 1 }); // Composite index for store + search queries
+productSchema.index({ name: 'text' });          // Text index: replaces $regex for full-text search
 
 const Product = mongoose.model('Product', productSchema);
 
