@@ -6,8 +6,8 @@ const { getPaginationParams, buildPaginatedResponse, parseSortParam } = require(
 const STORES_LIMIT = 200;
 
 const search = asyncHandler(async (req, res) => {
-  // q (keyword), location (text), lat, lng, radiusKm (geo)
-  const { q, location, lat, lng, radiusKm } = req.validated; // Already validated & sanitized
+  // q is the public API param name; aliased to 'keyword' here for clarity
+  const { q: keyword, location, lat, lng, radiusKm } = req.validated; // Already validated & sanitized
   const { page, limit, skip } = getPaginationParams(req.query);
   const sort = parseSortParam(req.query.sort);
 
@@ -48,9 +48,9 @@ const search = asyncHandler(async (req, res) => {
 
   const locationStoreIds = locationStores.map((s) => s._id);
 
-  // 2) Products: match q AND match location storeIds (if provided)
+  // 2) Products: match keyword AND match location storeIds (if provided)
   const productFilter = {};
-  if (q) productFilter.$text = { $search: q };
+  if (keyword) productFilter.$text = { $search: keyword };
   if (location || geoFilter) productFilter.storeId = { $in: locationStoreIds };
 
   // countDocuments and find are independent — run them in parallel
@@ -67,17 +67,17 @@ const search = asyncHandler(async (req, res) => {
   // 3) Stores result logic
   let stores = [];
 
-  if (q) {
+  if (keyword) {
     // $text cannot appear inside $or, so we run two queries in parallel:
-    //   a) stores whose name/addressText matches q via the text index
-    //   b) stores that own a product matching q (looked up by ID)
+    //   a) stores whose name/addressText matches keyword via the text index
+    //   b) stores that own a product matching keyword (looked up by ID)
     // then deduplicate the merged results in memory.
     const productStoreIds = [
       ...new Set(productsRaw.map((p) => String(p.storeId))),
     ];
 
     const storeQueries = [
-      Store.find({ $text: { $search: q }, ...(geoFilter || {}) })
+      Store.find({ $text: { $search: keyword }, ...(geoFilter || {}) })
         .select('_id name addressText image geo ownerId')
         .sort({ createdAt: -1 })
         .limit(STORES_LIMIT)
@@ -104,7 +104,7 @@ const search = asyncHandler(async (req, res) => {
       return true;
     });
   } else {
-    // No q → just return location-based stores (or all stores if no location)
+    // No keyword → just return location-based stores (or all stores if no location)
     stores = locationStores;
   }
 
@@ -139,7 +139,7 @@ const search = asyncHandler(async (req, res) => {
   const productsResponse = buildPaginatedResponse(products, totalProducts, page, limit);
 
   res.status(200).json({
-    query: { q, location },
+    query: { q: keyword, location },
     stores,
     ...productsResponse,
   });
