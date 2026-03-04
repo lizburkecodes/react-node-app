@@ -10,8 +10,10 @@ const getStores = asyncHandler(async (req, res) => {
     const { page, limit, skip } = getPaginationParams(req.query);
     const sort = parseSortParam(req.query.sort);
 
+    // $text uses the (name, addressText) compound text index on Store —
+    // same index used by the search endpoint, avoids a collection scan
     const filter = search
-        ? { addressText: { $regex: search, $options: 'i' } }
+        ? { $text: { $search: search } }
         : {};
 
     // Get total count for pagination metadata
