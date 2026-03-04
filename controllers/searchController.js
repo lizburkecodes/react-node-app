@@ -31,7 +31,6 @@ const search = asyncHandler(async (req, res) => {
   const locationStoreFilter = {};
 
   // location text filter — $text uses the (name, addressText) text index;
-  // much cheaper than a full-collection $regex scan
   if (location) {
     locationStoreFilter.$text = { $search: location };
   }
@@ -50,7 +49,6 @@ const search = asyncHandler(async (req, res) => {
   const locationStoreIds = locationStores.map((s) => s._id);
 
   // 2) Products: match q AND match location storeIds (if provided)
-  // $text uses the name text index — avoids the full-collection $regex scan
   const productFilter = {};
   if (q) productFilter.$text = { $search: q };
   if (location || geoFilter) productFilter.storeId = { $in: locationStoreIds };
