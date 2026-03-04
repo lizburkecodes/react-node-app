@@ -25,7 +25,6 @@ const productSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Performance indexes for filtering and sorting
-productSchema.index({ name: 1 });
 productSchema.index({ storeId: 1 });
 productSchema.index({ createdAt: -1 });
 productSchema.index({ storeId: 1, name: 1 }); // Composite index for store + search queries

@@ -51,8 +51,6 @@ const storeSchema = new mongoose.Schema(
 storeSchema.index({ geo: '2dsphere' });
 
 // Performance indexes for filtering and sorting
-storeSchema.index({ name: 1 });
-storeSchema.index({ addressText: 1 });
 storeSchema.index({ ownerId: 1 });
 storeSchema.index({ createdAt: -1 });
 // Text index: replaces $regex — name weighted higher so keyword hits on store
