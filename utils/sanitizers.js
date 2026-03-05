@@ -16,6 +16,28 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function emptyToNull(s) {
+  return s ? s : null;
+}
+
+function stripInvisibleAndControlChars(str) {
+  // remove ASCII control chars + DEL + common zero-width characters
+  return str
+    .replace(/[\u0000-\u001F\u007F]/g, "") // control chars
+    .replace(/[\u200B-\u200F\uFEFF]/g, ""); // zero-width + BOM
+}
+
+function normalizeUnicode(str) {
+  // NFKC folds many visually-similar forms into standard equivalents
+  // (e.g., full-width characters)
+  return str.normalize("NFKC");
+}
+
+function clampLength(str, max) {
+  if (typeof str !== "string") return "";
+  return str.length > max ? str.slice(0, max) : str;
+}
+
 /**
  * Trim and normalize whitespace
  * @param {string} str - String to normalize
@@ -23,7 +45,7 @@ function escapeRegex(str) {
  */
 function normalizeString(str) {
   if (!str || typeof str !== 'string') return '';
-  return str
+  return normalizeUnicode(stripInvisibleAndControlChars(str))
     .trim()
     .replace(/\s+/g, ' '); // Replace multiple spaces with single space
 }
@@ -34,7 +56,16 @@ function normalizeString(str) {
  * @returns {string} Sanitized name
  */
 function sanitizeProductName(name) {
-  return normalizeString(name);
+  return clampLength(normalizeString(name), 100);
+}
+
+/**
+ * Sanitize store name by trimming and normalizing
+ * @param {string} name - Store name to sanitize
+ * @returns {string} Sanitized store name
+ */
+function sanitizeStoreName(name) {
+  return clampLength(normalizeString(name), 150);
 }
 
 /**
@@ -43,7 +74,7 @@ function sanitizeProductName(name) {
  * @returns {string} Sanitized location
  */
 function sanitizeLocation(location) {
-  return normalizeString(location);
+  return clampLength(normalizeString(location), 150);
 }
 
 /**
@@ -52,8 +83,14 @@ function sanitizeLocation(location) {
  * @returns {string} Sanitized email
  */
 function sanitizeEmail(email) {
-  if (!email || typeof email !== 'string') return '';
-  return email.trim().toLowerCase();
+  if (!email || typeof email !== "string") return "";
+
+  return email
+    .normalize("NFKC")                 // normalize unicode variants
+    .replace(/[\u0000-\u001F\u007F]/g, "") // remove control characters
+    .trim()
+    .toLowerCase()
+    .slice(0, 254);                    // RFC max email length
 }
 
 /**
@@ -62,7 +99,7 @@ function sanitizeEmail(email) {
  * @returns {string} Sanitized display name
  */
 function sanitizeDisplayName(displayName) {
-  return normalizeString(displayName);
+  return clampLength(normalizeString(displayName), 50);
 }
 
 /**
@@ -72,7 +109,16 @@ function sanitizeDisplayName(displayName) {
  */
 function sanitizeImageUrl(url) {
   if (!url || typeof url !== 'string') return '';
-  return url.trim();
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  try {
+    const u = new URL(trimmed);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return '';
+    return u.toString();
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -114,7 +160,7 @@ function toSafeFloat(value) {
  * @returns {string} Sanitized query safe for regex
  */
 function sanitizeSearchQuery(query) {
-  const normalized = normalizeString(query);
+  const normalized = clampLength(normalizeString(query), 100);
   return escapeRegex(normalized);
 }
 
@@ -124,7 +170,7 @@ function sanitizeSearchQuery(query) {
  * @returns {string} Sanitized location safe for regex
  */
 function sanitizeLocationForRegex(location) {
-  const normalized = normalizeString(location);
+  const normalized = clampLength(normalizeString(location), 100);
   return escapeRegex(normalized);
 }
 
@@ -155,18 +201,15 @@ function sanitizeGeoCoordinates(lng, lat) {
  * @returns {object} Cleaned object
  */
 function removeSensitiveFields(obj, fieldsToRemove = []) {
-  if (!obj || typeof obj !== 'object') return obj;
+  if (!obj) return obj;
+  const plain = typeof obj.toObject === "function" ? obj.toObject() : obj;
+  if (typeof plain !== 'object') return plain;
 
-  const cleaned = { ...obj };
-  
-  // Always remove these fields
-  const defaultRemove = ['passwordHash', 'passwordResetToken', 'passwordResetExpires', '__v'];
-  const toRemove = [...defaultRemove, ...fieldsToRemove];
+  const cleaned = { ...plain };
+  const defaultRemove = ['passwordHash', 'passwordResetToken', 'passwordResetExpires', '__v', 'refreshTokens'];
+  const toRemove = [...new Set([...defaultRemove, ...fieldsToRemove])];
 
-  toRemove.forEach(field => {
-    delete cleaned[field];
-  });
-
+  for (const field of toRemove) delete cleaned[field];
   return cleaned;
 }
 
@@ -179,7 +222,7 @@ function sanitizeProductRequest(body) {
   return {
     name: sanitizeProductName(body.name || ''),
     quantity: toSafeInteger(body.quantity),
-    image: sanitizeImageUrl(body.image || ''),
+    image: emptyToNull(sanitizeImageUrl(body.image || '')),
   };
 }
 
@@ -190,9 +233,9 @@ function sanitizeProductRequest(body) {
  */
 function sanitizeStoreRequest(body) {
   const sanitized = {
-    name: sanitizeProductName(body.name || ''),
+    name: sanitizeStoreName(body.name || ''),
     addressText: sanitizeLocation(body.addressText || ''),
-    image: sanitizeImageUrl(body.image || ''),
+    image: emptyToNull(sanitizeImageUrl(body.image || '')),
   };
 
   if (body.geo && body.geo.coordinates) {
@@ -241,9 +284,16 @@ module.exports = {
   // Escape/encoding
   escapeRegex,
 
+  // helper functions
+  emptyToNull,
+  normalizeUnicode,
+  clampLength,
+  stripInvisibleAndControlChars,
+
   // String normalization
   normalizeString,
   sanitizeProductName,
+  sanitizeStoreName,
   sanitizeLocation,
   sanitizeEmail,
   sanitizeDisplayName,
