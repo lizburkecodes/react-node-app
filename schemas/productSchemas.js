@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { normalizeString } = require('../utils/sanitizers');
 
 /**
  * Product name validation
@@ -7,8 +8,8 @@ const { z } = require("zod");
 const productNameSchema = z
   .string()
   .min(2, "Product name must be at least 2 characters")
-  .max(200, "Product name must not exceed 200 characters")
-  .trim()
+  .max(100, "Product name must not exceed 100 characters")
+  .transform(normalizeString)
   .refine(
     (name) => /^[a-zA-Z0-9\s\-_.,'&()]+$/.test(name),
     "Product name can only contain letters, numbers, spaces, and basic punctuation (- _ . , ' &)"
@@ -56,7 +57,8 @@ const imageUrlSchema = z
   )
   .max(500, "Image URL must not exceed 500 characters")
   .optional()
-  .or(z.literal(""));
+  .or(z.literal(""))
+  .transform((val) => val || undefined);
 
 /**
  * Create product validation schema

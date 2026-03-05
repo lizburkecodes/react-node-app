@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { normalizeString } = require('../utils/sanitizers');
 
 // Email validation - RFC 5322 compliant
 const emailSchema = z
@@ -21,8 +22,8 @@ const registerSchema = z.object({
   displayName: z
     .string()
     .min(2, "Display name must be at least 2 characters")
-    .max(100, "Display name must not exceed 100 characters")
-    .trim(),
+    .max(50, "Display name must not exceed 50 characters")
+    .transform(normalizeString),
   email: emailSchema,
   password: passwordSchema,
   confirmPassword: z.string(),

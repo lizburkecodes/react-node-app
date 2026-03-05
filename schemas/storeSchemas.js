@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { normalizeString } = require('../utils/sanitizers');
 
 /**
  * Store name validation
@@ -8,9 +9,9 @@ const storeNameSchema = z
   .string()
   .min(2, "Store name must be at least 2 characters")
   .max(150, "Store name must not exceed 150 characters")
-  .trim()
+  .transform(normalizeString)
   .refine(
-    (name) => /^[a-zA-Z0-9\s\-_.,''\u2018\u2019&()#]+$/.test(name),
+    (name) => /^[a-zA-Z0-9\s\-_.,'\u2018\u2019&()#]+$/.test(name),
     "Store name can only contain letters, numbers, spaces, and basic punctuation (- _ . , ' & #)"
   );
 
@@ -21,8 +22,8 @@ const storeNameSchema = z
 const addressTextSchema = z
   .string()
   .min(5, "Address must be at least 5 characters")
-  .max(500, "Address must not exceed 500 characters")
-  .trim()
+  .max(150, "Address must not exceed 150 characters")
+  .transform(normalizeString)
   .refine(
     (addr) => /^[a-zA-Z0-9\s\-.,#&()]+$/.test(addr),
     "Address can only contain standard address characters"
@@ -67,6 +68,18 @@ const geoSchema = z.object({
   coordinates: z.array(z.number()).length(2),
 });
 
+const storeImageUrlSchema = z
+  .string()
+  .url("Image must be a valid URL")
+  .refine(
+    (url) => url.startsWith("http://") || url.startsWith("https://"),
+    "Image URL must start with http:// or https://"
+  )
+  .max(500, "Image URL must not exceed 500 characters")
+  .optional()
+  .or(z.literal(""))
+  .transform((val) => val || undefined);
+
 /**
  * Create store validation schema
  * Validates store creation data
@@ -76,12 +89,7 @@ const createStoreSchema = z.object({
   addressText: addressTextSchema,
   latitude: latitudeSchema,
   longitude: longitudeSchema,
-  image: z
-    .string()
-    .url("Image must be a valid URL")
-    .max(500, "Image URL must not exceed 500 characters")
-    .optional()
-    .or(z.literal("")),
+  image: storeImageUrlSchema,
 });
 
 /**
@@ -93,12 +101,7 @@ const updateStoreSchema = z.object({
   addressText: addressTextSchema.optional(),
   latitude: latitudeSchema.optional(),
   longitude: longitudeSchema.optional(),
-  image: z
-    .string()
-    .url("Image must be a valid URL")
-    .max(500, "Image URL must not exceed 500 characters")
-    .optional()
-    .or(z.literal("")),
+  image: storeImageUrlSchema,
 }).refine(
   (data) => Object.keys(data).length > 0,
   "At least one field must be provided for update"
@@ -123,7 +126,7 @@ const searchSchema = z.object({
   location: z
     .string()
     .min(1, "Location must be at least 1 character")
-    .max(500, "Location must not exceed 500 characters")
+    .max(150, "Location must not exceed 150 characters")
     .trim()
     .optional()
     .or(z.literal("")),
