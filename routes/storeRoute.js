@@ -4,6 +4,7 @@ const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
 const { validateBody, validateParams } = require('../middleware/validationMiddleware');
 const { auditLog } = require('../middleware/auditMiddleware');
+const { profanityFilter } = require('../middleware/profanityMiddleware');
 const { csrfProtection } = require('../middleware/csrfMiddleware');
 const {
   createStoreLimiter,
@@ -35,16 +36,16 @@ const {
 
 // store -> products (public for now)
 router.get('/:storeId/products', getProductsByStore);
-router.post('/:storeId/products', authMiddleware, csrfProtection, createProductLimiter, validateBody(createProductSchema), auditLog('PRODUCT_CREATE', 'Product'), createProductForStore);
+router.post('/:storeId/products', authMiddleware, csrfProtection, createProductLimiter, validateBody(createProductSchema), profanityFilter('name', 'Product name'), auditLog('PRODUCT_CREATE', 'Product'), createProductForStore);
 
 // get all stores
 router.get('/', getStores);
 
 // create store with CSRF, rate limit, validation, and audit log
-router.post('/', authMiddleware, csrfProtection, createStoreLimiter, validateBody(createStoreSchema), auditLog('STORE_CREATE', 'Store'), createStore);
+router.post('/', authMiddleware, csrfProtection, createStoreLimiter, validateBody(createStoreSchema), profanityFilter('name', 'Store name'), auditLog('STORE_CREATE', 'Store'), createStore);
 
 // update store with CSRF, rate limit, validation, and audit log
-router.put('/:id', authMiddleware, csrfProtection, updateStoreLimiter, validateBody(updateStoreSchema), auditLog('STORE_UPDATE', 'Store'), updateStore);
+router.put('/:id', authMiddleware, csrfProtection, updateStoreLimiter, validateBody(updateStoreSchema), profanityFilter('name', 'Store name'), auditLog('STORE_UPDATE', 'Store'), updateStore);
 
 // get one store (keep last)
 router.get('/:id', getStoreById);

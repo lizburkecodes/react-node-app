@@ -13,6 +13,7 @@ const {
 } = require('../controllers/authController');
 
 const authMiddleware = require('../middleware/authMiddleware');
+const { profanityFilter } = require('../middleware/profanityMiddleware');
 const {
   loginLimiter,
   registerLimiter,
@@ -50,7 +51,7 @@ const {
 router.get('/csrf-token', csrfProtection, csrfTokenHandler);
 
 // Register with CSRF, rate limiting and validation
-router.post('/register', csrfProtection, registerLimiter, validateBody(registerSchema), registerUser);
+router.post('/register', csrfProtection, registerLimiter, validateBody(registerSchema), profanityFilter('displayName', 'Display name'), registerUser);
 // Login with CSRF, rate limiting and validation
 router.post('/login', csrfProtection, loginLimiter, validateBody(loginSchema), loginUser);
 
