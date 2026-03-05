@@ -10,7 +10,7 @@ const storeNameSchema = z
   .max(150, "Store name must not exceed 150 characters")
   .trim()
   .refine(
-    (name) => /^[a-zA-Z0-9\s\-_.,'&()#]+$/.test(name),
+    (name) => /^[a-zA-Z0-9\s\-_.,''\u2018\u2019&()#]+$/.test(name),
     "Store name can only contain letters, numbers, spaces, and basic punctuation (- _ . , ' & #)"
   );
 
@@ -76,6 +76,12 @@ const createStoreSchema = z.object({
   addressText: addressTextSchema,
   latitude: latitudeSchema,
   longitude: longitudeSchema,
+  image: z
+    .string()
+    .url("Image must be a valid URL")
+    .max(500, "Image URL must not exceed 500 characters")
+    .optional()
+    .or(z.literal("")),
 });
 
 /**
@@ -87,6 +93,12 @@ const updateStoreSchema = z.object({
   addressText: addressTextSchema.optional(),
   latitude: latitudeSchema.optional(),
   longitude: longitudeSchema.optional(),
+  image: z
+    .string()
+    .url("Image must be a valid URL")
+    .max(500, "Image URL must not exceed 500 characters")
+    .optional()
+    .or(z.literal("")),
 }).refine(
   (data) => Object.keys(data).length > 0,
   "At least one field must be provided for update"
